@@ -1,0 +1,26 @@
+{
+  "name": "summer",
+  "version": "0.0.1",
+  "description": "Summer is your slack assistant",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src"
+  },
+  "keywords": [
+    "Slack",
+    "ChatBot",
+    "Bot",
+    "NLP"
+  ],
+  "author": "Giorgio Delgado",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.15.1",
+    "express": "^4.13.4",
+    "slack": "^7.2.0"
+  },
+  "devDependencies": {
+    "dotenv": "^2.0.0"
+  }
+}
