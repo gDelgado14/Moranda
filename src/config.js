@@ -15,6 +15,7 @@ const config = {
   WEBHOOK_URL: process.env.WEBHOOK_URL,
   ASIDE_COMMAND_TOKEN: process.env.ASIDE_COMMAND_TOKEN,
   SLACK_TOKEN: process.env.SLACK_TOKEN,
+  GG_BOT_TOKEN: process.env.GG_BOT_TOKEN,
   ICON_EMOJI: ':stars:'
 }
 
