@@ -9,12 +9,56 @@ const config = require('./config')
 let app = express()
 let bot = require('./bot')
 
+// array of channel objects
+// Channel Object Type: https://api.slack.com/types/channel
+let channels
+slack.channels.list({token: config('SLACK_TOKEN')}, (err, data) => {
+  if (err) {
+    throw err
+  } else {
+    channels = data.channels
+  }
+  console.log('index.js - slack.channels.list')
+  console.log(channels)
+})
+
+// array of group objects
+// Group Object Type: https://api.slack.com/types/group
+let groups
+slack.groups.list({token: config('SLACK_TOKEN')}, (err, data) => {
+  if (err) {
+    throw err
+  } else {
+    groups = data.groups
+  }
+  console.log('index.js - slack.groups.list')
+  console.log(groups)
+})
+
+// array of user objects
+// User Object Type: https://api.slack.com/types/user
+let users
+slack.users.list({token: config('SLACK_TOKEN')}, (err, data) => {
+  if (err) {
+    throw err
+  } else {
+    users = data.members
+  }
+  console.log('index.js - slack.users.list')
+  console.log(users)
+})
+
+
 // parse JSON
 app.use(bodyParser.json())
 
 // parse URLencoded bodies
 app.use(bodyParser.urlencoded({ extended: true }))
 
+// expose slash command to [SOME_SUBDOMAIN_NAME]
+// https://ngrok.com/docs#subdomain
+//
+// https://medium.com/slack-developer-blog/slash-commands-style-guide-4e91272aa43a#.wquwq4wn7
 app.post('/commands/aside', (req, res) => {
   let payload = req.body
 
@@ -31,6 +75,8 @@ app.post('/commands/aside', (req, res) => {
 
   // search for @ mentions
   let regexp = /(@\w+)/gi
+
+  // payload.text includes everything after /aside
   let teamMembers = payload.text.match(regexp)
 
   // remove @ mentions, lowecase everything, remove whitespace from both ends
@@ -42,7 +88,6 @@ app.post('/commands/aside', (req, res) => {
     name: channelTitle
   }
 
-  // payload.text includes everything after /aside
   // Channel names can only contain
   // - lowercase letters
   // - numbers

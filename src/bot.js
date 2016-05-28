@@ -13,10 +13,10 @@ bot.started((payload) => {
 })
 
 bot.hello(message => {
-  console.log(`Got a message: ${message}`)
+  console.log('Got a message: ', message)
 })
 
-console.log('bot.self: ')
+console.log('bot.js - bot.self: ')
 console.log(bot.self)
 
 // listen for messages
