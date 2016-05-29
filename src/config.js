@@ -2,15 +2,12 @@
 'use strict'
 
 const dotenv = require('dotenv')
-const ENV = process.env.NODE_ENV || 'development'
 
-console.log(ENV)
-
-if (ENV === 'development') dotenv.load()
+if (!process.env.NODE_ENV) dotenv.load()
 
 const config = {
   ENV: process.env.NODE_ENV,
-  PORT: process.env.PORT,
+  PORT: process.env.PORT || 3000,
   PROXY_URI: process.env.PROXY_URI,
   WEBHOOK_URL: process.env.WEBHOOK_URL,
   ASIDE_COMMAND_TOKEN: process.env.ASIDE_COMMAND_TOKEN,
