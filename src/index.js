@@ -209,9 +209,9 @@ bot.message(msg => {
   console.log('bot.js - bot.message - msg.channel:')
   console.log(msg.channel)*/
 
-
-  // let mentionSyntax = '<@' + botID + '>:?\\sdone(\\s\\w+|!*|\\.*)?'
-  // let mentionRegEx = new RegExp(mentionSyntax, 'gi')
+  // listen to variations of @gg done!
+  let mentionSyntax = '<@' + botID + '>:?\\sdone(\\s\\w+|!*|\\.*)?'
+  let mentionRegEx = new RegExp(mentionSyntax, 'gi')
 
   // if (mentionRegEx.test(msg.text)) {}
   /*
