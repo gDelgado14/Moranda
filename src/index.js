@@ -208,8 +208,12 @@ bot.message(msg => {
   /* console.log(msg)
   console.log('bot.js - bot.message - msg.channel:')
   console.log(msg.channel)*/
-  if (!msg.user || msg.user_profile.name !== 'gg') return
 
+
+  // let mentionSyntax = '<@' + botID + '>:?\\sdone(\\s\\w+|!*|\\.*)?'
+  // let mentionRegEx = new RegExp(mentionSyntax, 'gi')
+
+  // if (mentionRegEx.test(msg.text)) {}
   /*
   slack.chat.postMessage({
     token: botToken,
@@ -230,10 +234,10 @@ bot.group_joined(group => {
   let invitees = ' '
 
   const welcomeMsg = `Welcome${invitees}!
-  Gio created this Aside to chat about __something__here__
-  When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
+Gio created this Aside to chat about __something__here__
+When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
 
-  Just @mention me in this Sidebar and I'll take care of it @gg done`
+Just @mention me in this Sidebar and I'll take care of it: \`@gg done\``
 
   slack.chat.postMessage({
     token: botToken,
