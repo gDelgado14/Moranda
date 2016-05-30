@@ -16,9 +16,7 @@
   "author": "Giorgio Delgado",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.15.1",
-    "express": "^4.13.4",
-    "slack": "^7.2.0"
+    "botkit": "^0.2.0"
   },
   "devDependencies": {
     "dotenv": "^2.0.0"
