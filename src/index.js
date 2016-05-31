@@ -6,8 +6,7 @@ const config = require('./config')
 const port = config('PORT')
 const botToken = config('GG_BOT_TOKEN')
 const slackToken = config('SLACK_TOKEN')
-
-let botID = null
+const asideToken = config('ASIDE_COMMAND_TOKEN')
 
 let controller = Botkit.slackbot({
   debug: false
@@ -15,60 +14,31 @@ let controller = Botkit.slackbot({
   // or a "logLevel" integer from 0 to 7 to adjust logging verbosity
 })
 
-// convert to botkit express app
-// let app = express()
-controller.setupWebserver(port)
-let app = controller.webserver
-
 // connect the bot to a stream of msgs
-let bot = controller.spawn({
+controller.spawn({
   token: botToken
 }).startRTM()
 
-console.log('logging bot obj: ')
-console.log(bot)
-
-controller.hears('hello', ['direct_message', 'direct_mention', 'mention'], (bot, message) => {
-  bot.reply(message, 'hello yourself')
-})
-
-app.post('/commands/aside', (req, res) => {
-  let payload = req.body
-  console.log('POST request to /commands/aside')
-  console.log(payload)
-
-  // ensure there's a payload and payload has an approved payload
-  if (!payload || payload.token !== config('ASIDE_COMMAND_TOKEN')) {
-    let err = '✋  Star—what? An invalid slash token was provided\n' +
-              '   Is your Slack slash token correctly configured?'
-    console.log(err)
-    res.status(401).end(err)
-    return
+// global access to express server available through controller.webserver
+controller.setupWebserver(port, (err, webserver) => {
+  if (err) {
+    throw new Error(err)
   }
 
-  // search for @ mentions
-  let regexp = /@\w+/gi
+  // configure server for /Aside commands and all other outgoing webhooks
+  // /Aside currently the only command sending outgoing webhooks
+  // listen for POST requests at '/slack/receive'
+  controller.createWebhookEndpoints(webserver, asideToken)
+})
 
-  // payload.text includes everything after /aside
-  let teamMembers = payload.text.match(regexp)
-  let channelTitle = payload.text.replace(regexp, '').toLowerCase().trim().replace(/\s+/gi, '-')
+controller.on('slash_command', (bot, message) => {
+  console.log('index.js - slash_command event - message obj:')
+  console.log(message)
+  console.log(' ')
 
-  // add @gg (bot) to teamMembers array as automatic
-  // invitee to all /aside discussions
-  teamMembers.push('@gg')
-
-  console.log(teamMembers)
-
-  // controller does not contain api obj
-  // bot variable might have api obj
-  controller.api.groups.create({
-    token: slackToken,
-    name: channelTitle
-  }, (err, data) => {
-    if (err) {
-      console.log(err)
-    } else {
-      console.log('api.groups.create')
-    }
-  })
+  // reply to slash command
+  // TODO: TOKEN error - bot authenticated as the
+  // slash command rather than @gg
+  bot.replyPublic(message, 'Hello everybody!')
+  bot.replyPrivate(message, 'Only the person who used the slash command can see this')
 })
