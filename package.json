@@ -16,7 +16,7 @@
   "author": "Giorgio Delgado",
   "license": "ISC",
   "dependencies": {
-    "botkit": "^0.2.0"
+    "botkit": "0.2.0"
   },
   "devDependencies": {
     "dotenv": "^2.0.0"

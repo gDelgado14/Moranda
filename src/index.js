@@ -8,6 +8,8 @@ const botToken = config('GG_BOT_TOKEN')
 const slackToken = config('SLACK_TOKEN')
 const asideToken = config('ASIDE_COMMAND_TOKEN')
 
+// controller is an instance of SlackBot
+// slackBot inherits properties of CoreBot
 let controller = Botkit.slackbot({
   debug: false
   // include "log: false" to disable logging
@@ -15,7 +17,9 @@ let controller = Botkit.slackbot({
 })
 
 // connect the bot to a stream of msgs
-controller.spawn({
+// spawn returns an instance of worker (Slackbot_worker.js)
+// startRTM returns another instance of worker (Slackbot_worker.js)
+let bot = controller.spawn({
   token: botToken
 }).startRTM()
 
@@ -31,6 +35,7 @@ controller.setupWebserver(port, (err, webserver) => {
   controller.createWebhookEndpoints(webserver, asideToken)
 })
 
+// register slash command callback for /Aside
 controller.on('slash_command', (bot, message) => {
   console.log('index.js - slash_command event - message obj:')
   console.log(message)
