@@ -4,7 +4,7 @@ Controller for managing [multiple] slack bot instances.
 
 Extends `CoreBot`.
 
-Module returns extended `CoreBot`.
+Module returns extended `CoreBot` obj.
 
 Uses `CoreBot.defineBot(require(__dirname + '/Slackbot_worker.js'))` to define a bot class.
 
@@ -106,11 +106,42 @@ When an outgoing webhook is recieved from Slack, Botkit fires the `outgoing_webh
 
 
 ### `.createOauthEndpoints(webserver[, callback])`
+Returns **`SlackBot`** obj
+
+| Argument | Description |
+| -------- | ----------- |
+| webserver| express server instance |
+| authenticationTokens *(optional)* | if passed, Botkit will ensure only registered slash commands are processed |
+
+**description**: Call this function to create two web urls that handle login via Slack.
+Once called, the resulting webserver will have two new routes: `http://_your_server_/login` and `http://_your_server_/oauth`. The second url will be used when configuring
+the "Redirect URI" field of your application on Slack's API site.
 
 
+```javascript
+var Botkit = require('botkit');
+var controller = Botkit.slackbot();
 
+controller.configureSlackApp({
+  clientId: process.env.clientId,
+  clientSecret: process.env.clientSecret,
+  redirectUri: 'http://localhost:3002',
+  scopes: ['incoming-webhook','team:read','users:read','channels:read','im:read','im:write','groups:read','emoji:read','chat:write:bot']
+});
 
+controller.setupWebserver(process.env.port,function(err,webserver) {
 
+  // set up web endpoints for oauth, receiving webhooks, etc.
+  controller
+    .createHomepageEndpoint(controller.webserver)
+    .createOauthEndpoints(controller.webserver,function(err,req,res) { ... })
+    .createWebhookEndpoints(controller.webserver);
+
+});
+
+```
+
+---
 
 ## Utilities:
 
@@ -136,3 +167,8 @@ utility method for `.createOauthEndpoints`
 **description**: adds the webhook authentication middleware module to the webserver
 
 utility for `.createWebhookEndpoints`
+
+
+### `.handleSlackEvents()`
+
+**description**: utility method to set up the RTM message handlers
