@@ -118,8 +118,46 @@ controller.hears('open the (.*) doors',['message_received'],function(bot,message
 ### `.trigger(event, data)`
 returns **`undefined`**
 
+| Argument     | Description                                   |
+| ------------ | --------------------------------------------- |
+| event (str)  | a string containing the event to be triggered |
+| data         | an array containing 0 or more pieces of data  |
+
+**Description**: Trigger all callbacks (registered events) associated with `event`
+
+
+
+
+### `.spawn(config, cb)`
+returns a **`slackbot_worker`** instance
+
+| Argument     | Description                                            |
+| ------------ | ---------------------------------------------          |
+| config       | configuration options for a `slackbot_worker` instance |
+| cb    *optional*       | function that gets passed the newly-created `slackbot_worker` instance as a param           |  
+
+**Description**: Spawn an instance of your bot and connect it to Slack. This function takes a configuration object which should contain at least one method of talking to the Slack API.
+
+mutates the worker (adds a `.say` method using [ware](https://www.npmjs.com/package/ware)) so that we can call middleware
+
+Spawn `config` object accepts these properties:
+
+| Name | Value | Description
+|--- |--- |---
+| token | String | Slack bot token
+| retry | Positive integer or `Infinity` | Maximum number of reconnect attempts after failed connection to Slack's real time messaging API. Retry is disabled by default
+
+
+
+
+
+
+
 
 ---
+
+<br />
+
 
 ## Debugging
 
@@ -128,6 +166,10 @@ returns **`undefined`**
 
 
 ---
+
+
+<br />
+
 
 ## Storing Information
 
@@ -141,6 +183,7 @@ var controller = Botkit.slackbot({
 ```
 
 This system supports freeform storage on a team-by-team, user-by-user, and channel-by-channel basis. Basically ```controller.storage``` is a key value store. All access to this system is through the following nine functions. Example usage:
+
 ```javascript
 controller.storage.users.save({id: message.user, foo:'bar'}, function(err) { ... });
 controller.storage.users.get(id, function(err, user_data) {...});
@@ -172,6 +215,8 @@ all_[user/channel/team]_data
 
 ---
 
+<br />
+
 ## Utilities:
 
 ### `Conversation(task, message)` Constructor
@@ -201,3 +246,84 @@ all_[user/channel/team]_data
 Returns **`undefined`**
 
 **Description**: change the default matching function
+
+
+
+### `.startConversation(bot, message, cb)`
+returns **`undefined`**
+
+| Argument     | Description                                   |
+| ------------ | --------------------------------------------- |
+| bot          | an instance of `slackbot_worker`|
+| message      | incoming message to which the conversation is in response  |
+| cb           | a callback function in the form of `function(err,conversation) { ... }` |
+
+**Description**: This function is used by `worker` instances defined by `slackbot_worker`.
+
+creates conversation in response to an incoming message.
+The conversation will occur *in the same channel* in which the incoming message was received.
+
+Only the user who sent the original incoming message will be able to respond to messages in the conversation.
+
+calls on `CoreBot.startTask`.
+
+Fires a `conversationStarted` event
+
+
+### `.defineBot(unit)`
+returns **`undefined`**
+
+| Argument     | Description                                   |
+| ------------ | --------------------------------------------- |
+| unit         | an instance of `slackbot_worker`              |
+
+
+**Description**: Used by `SlackBot.js` to define what a bot is.
+
+Replaces the default `worker` object defined within `CoreBot.worker`
+
+
+
+### `.startTicking()`
+returns **`undefined`**
+
+**Description**: calls on `CoreBot.tick()` if no `tickInterval` has been set already.
+
+
+### `.shutdown()`
+returns **`undefined`**
+
+**Description**: if a tickInterval has been set, `CoreBot.tickInterval` is cleared
+
+
+### `.startTask(bot, message, cb)`
+returns **`undefined`**
+
+| Argument     | Description                                   |
+| ------------ | --------------------------------------------- |
+| bot          |              |
+| message      |              |
+| cb           |              |
+
+
+**Description**: starts a task. Utility for `CoreBot.startConversation` and 'slackbot_worker.startPrivateConversation'
+
+If a callback is passed, passes a newly created `Task` object and `convo` object to the callback as params
+
+
+### `.receiveMessage(bot, message)`
+returns **`undefined`**
+
+| Argument     | Description                                   |
+| ------------ | --------------------------------------------- |
+| bot          | an instance of `slackbot_worker`         |
+| message      | a Slack object literal representing msg data             |
+
+
+**Description**: Triggers `handleSlackEvents`. utility to figure out what type of message was sent. Used in `SlackBot.createWebhookEndpoints` to trigger either `outgoing_webhook` or `slash_command` events
+
+
+### `.tick()`
+returns **`undefined`**
+
+**Description**: utility for `Conversation` objects
