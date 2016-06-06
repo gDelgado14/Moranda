@@ -1,5 +1,7 @@
 /**
  * TODO:
+ *  - have a bug reporter set up on firebase
+ * 	- replace test token with user tokens
  * 	- have @gg respond to empty mentions (i.e. '@gg') within groups and channels that @gg is in
  * 	- have @gg respond to DMs (use 'ambient' msg type)
  * 	- user friendly error messages - don't just throw uncaught errors
@@ -8,6 +10,10 @@
  * 	- close asides automatically for people ??
  * 	- have a /feedback aside
  * 	- have a help command
+ * 	- set up 'message' event handlers to maintain updated state with slack
+ * 		- type: message  --> subtype: channel_purpose
+ * 	- teamData should be an object with handlers bound to it that keep it in sync with slack data
+ * 	- keep a handle on the bot's id. maybe teamData.self.id does this?
  */
 
 'use strict'
@@ -209,8 +215,6 @@ Just @mention me in this sidebar and I'll take care of it: \`@gg done\``
 // Once ''@gg done' is mentioned within the same channel, start summarization conversation
 controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
 
-  console.log('==== done has been mentioned ========== ');
-
   // asideData queries return:
   // - true if Aside still open
   // - false if Aside has been archived
@@ -225,11 +229,7 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
 
       function handleEndOfConvo(c) {
         if (convo.status === 'completed') {
-          console.log('======= handleEndOfConvo - summary ==========');
-          console.log(c.extractResponse('summary')) // using summary key for testing
 
-          // TODO: archive the sidebar
-          // - set false on asideData group ref
           webAPI.groups.archive({
             token: userToken,
             channel: message.channel
@@ -248,10 +248,6 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
       let introQuestion = `OK, <@${message.user}>, before I archive this Aside, would you mind summarizing the conversation for the group? What were the key takeaways?`
       convo.ask(introQuestion, (response, convo) => {
 
-          // TODO: need
-          //  -- user real_name
-          //  -- user image_24
-          //  -- group purpose
           convo.ask(
             'do you want to share this Summary with a Channel? You can say: `#channel-name` or `nope` to skip it.',
             [
@@ -261,6 +257,10 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
                   let channelRegex = /<#(\w+)>/gi
                   let match = channelRegex.exec(response.text)
                   let channels = []
+                  let groupName = null
+                  let groupPurpose = null
+                  let userHandle = null
+                  let userImg = null
 
                   // extract all mentions of channels
                   while (match) {
@@ -268,17 +268,36 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
                     match = channelRegex.exec(response.text)
                   }
 
-                  convo.say(`great, I will share this summary with ${response.text.match(channelRegex).join(', ')}`)
+                  // find group's info
+                  for (var i = 0; i < teamData.groups.length; i++) {
+                    if (teamData.groups[i].id === response.channel) {
+                      groupName = teamData.groups[i].name
+                      groupPurpose = teamData.groups[i].purpose.value // null because teamData not updated
+                      console.log(">>>>>> groupData: ")
+                      console.log(teamData.groups[i])
+                      break
+                    }
+                  }
+
+                  // get user data
+                  for (i = 0; i < teamData.users.length; i++) {
+                    if (teamData.users[i].id === response.user) {
+                      userHandle = teamData.users[i].name
+                      userImg = teamData.users[i].profile.image_24
+                      break
+                    }
+                  }
+
 
                   let asideSummary = [{
                       fallback: 'An Aside summary.',
                       color: "#36a64f",
-                      author_name: '<@' + response.user + '>',
-                      author_icon: 'https://avatars.slack-edge.com/2016-01-27/19637364614_9e437da53797700b083b_24.jpg',
+                      author_name: '@' + userHandle,
+                      author_icon: userImg,
                       fields: [
                         {
                           title: "Purpose",
-                          value: "FETCH PURPOSE"
+                          value: groupPurpose
                         },
                         {
                           title: "Summary",
@@ -291,29 +310,49 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
                   channels.forEach(channel => webAPI.chat.postMessage({
                     token: botToken,
                     channel: channel,
-                    text: 'Here\'s an update of the \"choo choo train\" Sidebar',
+                    text: `Here\'s an update of the \"${groupName}\" Sidebar`,
                     attachments: asideSummary,
                     as_user: true
                   }, (e, response) => {
                     if (e) {
                       console.log('>>>> error adding summary to a channel: ')
-                      console.log(channel)
+                      console.log(e)
+                      console.log(typeof e)
+                      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
                       // Error: not_in_channel thrown if asked to
                       // post in channel that gg is not in
-                      if (e.message === 'not_in_channel') {
+                      if (e === 'not_in_channel') {
                         // TODO: start a dialogue around whether to add the bot to the channel or not
+                        //        if invited to channel, call postMessage once more to add message to slack
+                        //        if @gg is invited to new channel, actually share the post
                         console.log('>>>>>>> not_in_channe')
+                        convo.ask(
+                          `Woah! It seems like I\'m not in <#${channel}>.\nAll you gotta do is invite me: \`/invite <@${teamData.self.id}> <#${channel}>\`.\nOr just say \`cancel\``,
+                          [
+                            {
+                              pattern: bot.utterances.no,
+                              callback: (response, convo) => {
+                                convo.say(`Ok. I won't share the summary with <#${channel}>`)
+                                convo.next()
+                              }
+                            },
+                            {
+                              default: true,
+                              callback: (response, convo) => {
+                                convo.say('woo default response')
+                                convo.next()
+                              }
+                            }
+                          ])
                       } else {
                         throw new Error(e)
                       }
                     }
-
-                    // convo.repeat ????
+                    // convo.repeat ???
                   }))
 
-                  console.log('>>>>>>> response obj');
-                  console.log(response);
-
+                  // TODO: have a list of the channels that the summary was ACTUALLY added to
+                  convo.say(`great, I will share this summary with ${response.text.match(channelRegex).join(', ')}`)
                   convo.next()
                 }
             }, {
@@ -342,5 +381,20 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
         }) // using summary key for testing
 
     })
+  }
+})
+
+
+// update relevant teamData info
+controller.on('group_purpose', (bot, message) => {
+  // should only care if that channel is an OPEN Aside
+  // closed and non-existent asides are falsey
+  if (asideData[message.channel]) {
+    for (var i = 0; i < teamData.groups.length; i++) {
+      if (teamData.groups[i].id === message.channel) {
+        teamData.groups[i].purpose.value = message.purpose.trim()
+        break
+      }
+    }
   }
 })
