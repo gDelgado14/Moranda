@@ -4,3 +4,5 @@ old.js
 npm-debug.log
 .DS_Store
 res.json
+serviceAccount.json
+*.txt
