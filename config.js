@@ -1,9 +1,8 @@
 
 'use strict'
 
-const dotenv = require('dotenv')
 
-if (!process.env.NODE_ENV) dotenv.load()
+if (!process.env.NODE_ENV) require('dotenv').load()
 
 const config = {
   ENV: process.env.NODE_ENV,
