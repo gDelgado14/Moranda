@@ -40,13 +40,15 @@ controller.configureSlackApp({
 ```
 
 
-### `.setupWebserver(port[, cb])`
+### `.setupWebserver(port[, landingPageDir, cb])`
 Returns **`SlackBot`** obj
 
 | Argument | Description |
 | -------- | ----------- |
 | port     |  port for webserver |
+| landingPageDir| address of your public directory |
 | callback *(optional)* | node-style callback function passed `null` and the created `webserver`|
+
 
 **description**: Instantiate an [Express webserver](http://expressjs.com/en/index.html) for
 use with `createWebhookEndpoints()`

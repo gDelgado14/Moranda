@@ -1,4 +1,7 @@
 /**
+ *
+ *	deploy with git push heroku botkit:master
+ *
  * TODO:
  *  - have a bug reporter set up on firebase
  * 	- replace test token with user tokens
@@ -18,7 +21,7 @@
 
 'use strict'
 
-const Botkit = require('botkit')
+const Botkit = require('./botkit')
 const config = require('./config')
 const firebase = require('firebase')
 const port = config('PORT')
@@ -38,7 +41,7 @@ let controller = Botkit.slackbot({
 // https://firebase.google.com/docs/database/server/start
 firebase.initializeApp({
   databaseURL: 'https://project-3576296690235739912.firebaseio.com/',
-  serviceAccount: './serviceAccount.json'
+  serviceAccount: './dbaccount.json'
 })
 
 // As an admin, the app has access to read and write all data, regardless of Security Rules
@@ -77,7 +80,7 @@ let ggBot = controller.spawn({
 
 
 // global access to express server available through controller.webserver
-controller.setupWebserver(port, (err, webserver) => {
+controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
   if (err) {
     throw new Error(err)
   }
@@ -179,7 +182,7 @@ controller.on('slash_command', (bot, message) => {
             // https://api.slack.com/docs/formatting
             //
             // TODO: fetch bots name by referecing its ID
-            // 
+            //
             // use attachments if regular text formatting doesnt work
             // https://api.slack.com/docs/attachments
           let txt = `Welcome @${message.user_name + ', ' + message.text.match(regexp).join(', ')}!
