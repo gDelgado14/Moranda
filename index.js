@@ -52,8 +52,9 @@ asideRef.on('value', snapshot => {
 })
 
 // holds a representation of the current team
-// TODO: usea a data store (Firebase) to keep track of a team's asides
 let teamData = null
+
+// shorthand for ggBot.api
 let webAPI = null
 
 // connect the bot to a stream of msgs
@@ -85,6 +86,11 @@ controller.setupWebserver(port, (err, webserver) => {
   // /Aside currently the only command sending outgoing webhooks
   // listen for POST requests at '/slack/receive'
   controller.createWebhookEndpoints(webserver, asideToken)
+
+  // set up a landing page web route
+  // TODO: set up so it sends the actual landing page
+  // http://expressjs.com/en/starter/static-files.html
+  controller.createHomepageEndpoint(webserver)
 })
 
 // register slash command callback for /Aside
@@ -172,6 +178,8 @@ controller.on('slash_command', (bot, message) => {
             // TODO: use propper formatting to get username hyperlinks
             // https://api.slack.com/docs/formatting
             //
+            // TODO: fetch bots name by referecing its ID
+            // 
             // use attachments if regular text formatting doesnt work
             // https://api.slack.com/docs/attachments
           let txt = `Welcome @${message.user_name + ', ' + message.text.match(regexp).join(', ')}!
@@ -314,45 +322,40 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
                     attachments: asideSummary,
                     as_user: true
                   }, (e, response) => {
-                    if (e) {
-                      console.log('>>>> error adding summary to a channel: ')
-                      console.log(e)
-                      console.log(typeof e)
-                      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+                    if (e && e === 'not_in_channel') {
                       // Error: not_in_channel thrown if asked to
                       // post in channel that gg is not in
-                      if (e === 'not_in_channel') {
-                        // TODO: start a dialogue around whether to add the bot to the channel or not
-                        //        if invited to channel, call postMessage once more to add message to slack
-                        //        if @gg is invited to new channel, actually share the post
-                        console.log('>>>>>>> not_in_channe')
-                        convo.ask(
-                          `Woah! It seems like I\'m not in <#${channel}>.\nAll you gotta do is invite me: \`/invite <@${teamData.self.id}> <#${channel}>\`.\nOr just say \`cancel\``,
-                          [
-                            {
-                              pattern: bot.utterances.no,
-                              callback: (response, convo) => {
-                                convo.say(`Ok. I won't share the summary with <#${channel}>`)
-                                convo.next()
-                              }
-                            },
-                            {
-                              default: true,
-                              callback: (response, convo) => {
-                                convo.say('woo default response')
-                                convo.next()
-                              }
+
+                      // TODO: start a dialogue around whether to add the bot to the channel or not
+                      //        if invited to channel, call postMessage once more to add message to slack
+                      //        if @gg is invited to new channel, actually share the post
+                      console.log('>>>>>>> not_in_channe')
+                      convo.ask(
+                        `Woah! It seems like I\'m not in <#${channel}>.\nAll you gotta do is invite me: \`/invite <@${teamData.self.id}> <#${channel}>\`.\nOr just say \`cancel\``,
+                        [
+                          {
+                            pattern: bot.utterances.no,
+                            callback: (response, convo) => {
+                              convo.say(`Ok. I won't share the summary with <#${channel}>`)
+                              convo.next()
                             }
-                          ])
-                      } else {
-                        throw new Error(e)
-                      }
+                          },
+                          {
+                            default: true,
+                            callback: (response, convo) => {
+                              convo.say('woo default response')
+                              convo.next()
+                            }
+                          }
+                        ])
+                    } else {
+                      throw new Error(e)
                     }
                     // convo.repeat ???
                   }))
 
                   // TODO: have a list of the channels that the summary was ACTUALLY added to
-                  convo.say(`great, I will share this summary with ${response.text.match(channelRegex).join(', ')}`)
+                  convo.say(`Great, I will share this summary with ${response.text.match(channelRegex).join(', ')}`)
                   convo.next()
                 }
             }, {
