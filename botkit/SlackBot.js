@@ -196,12 +196,15 @@ function Slackbot(configuration) {
     };
 
     slack_botkit.saveTeam = function(team, cb) {
+        // REPLACE WITH FIREBASE
+        console.log('>>>>> slack_botkit.saveTeam - team: ', team)
         slack_botkit.storage.teams.save(team, cb);
     };
 
     // look up a team's memory and configuration and return it, or
     // return an error!
     slack_botkit.findTeamById = function(id, cb) {
+        console.log('>>>>> slack_botkit.findTeamById - id: ', id)
         slack_botkit.storage.teams.get(id, cb);
     };
 
@@ -305,6 +308,12 @@ function Slackbot(configuration) {
         slack_botkit.log('** Serving oauth return endpoint: http://MY_HOST:' + slack_botkit.config.port + '/oauth');
 
         webserver.get('/oauth', function(req, res) {
+            // access_denied can get passed when user cancels oauth flow
+            if (req.query.error && req.query.error === 'access_denied') {
+                console.log('>>> oauth error: ', req.query.error)
+                res.redirect('/')
+                return false
+            }
 
             var code = req.query.code;
             var state = req.query.state;
@@ -317,6 +326,7 @@ function Slackbot(configuration) {
 
             if (slack_botkit.config.redirectUri) opts.redirect_uri = slack_botkit.config.redirectUri;
 
+            // calling https://api.slack.com/methods/oauth.access
             oauth_access(opts, function(err, auth) {
 
                 if (err) {
@@ -339,7 +349,7 @@ function Slackbot(configuration) {
 
                     // what scopes did we get approved for?
                     var scopes = auth.scope.split(/\,/);
-
+                    console.log('>>> auth_access - auth', auth)
                     // temporarily use the token we got from the oauth
                     // we need to call auth.test to make sure the token is valid
                     // but also so that we reliably have the team_id field!
@@ -356,6 +366,7 @@ function Slackbot(configuration) {
                             slack_botkit.trigger('oauth_error', [err]);
 
                         } else {
+                            console.log('>>> auth_test - identity', identity)
                             req.identity = identity;
 
                             // we need to deal with any team-level provisioning info

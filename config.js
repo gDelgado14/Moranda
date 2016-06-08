@@ -9,9 +9,11 @@ const config = {
   PORT: process.env.PORT || 3000,
   PROXY_URI: process.env.PROXY_URI,
   WEBHOOK_URL: process.env.WEBHOOK_URL,
-  ASIDE_COMMAND_TOKEN: process.env.ASIDE_COMMAND_TOKEN,
+  SLASH_COMMAND_TOKEN: process.env.ASIDE_COMMAND_TOKEN,
   SLACK_TOKEN: process.env.SLACK_TOKEN,
-  GG_BOT_TOKEN: process.env.GG_BOT_TOKEN
+  GG_BOT_TOKEN: process.env.GG_BOT_TOKEN,
+  CLIENT_ID: process.env.CLIENT_ID,
+  CLIENT_SECRET: process.env.CLIENT_SECRET
 }
 
 module.exports = (key) => {

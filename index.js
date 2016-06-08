@@ -3,6 +3,7 @@
  *	deploy with git push heroku botkit:master
  *
  * TODO:
+ *  - remove SLACK_TOKEN and GG_BOT_TOKEN from .env
  *  - have a bug reporter set up on firebase
  * 	- replace test token with user tokens
  * 	- have @gg respond to empty mentions (i.e. '@gg') within groups and channels that @gg is in
@@ -27,14 +28,16 @@ const firebase = require('firebase')
 const port = config('PORT')
 const botToken = config('GG_BOT_TOKEN')
 const userToken = config('SLACK_TOKEN') // token of auth'd user
-const asideToken = config('ASIDE_COMMAND_TOKEN')
+const clientId = config('CLIENT_ID')
+const clientSecret = config('CLIENT_SECRET')
+const slashToken = config('SLASH_COMMAND_TOKEN') // Each application can have only one slash command token, even if they have multiple commands associated with an app
 
 // controller is an instance of SlackBot
 // slackBot inherits properties of CoreBot
-let controller = Botkit.slackbot({
-  debug: false
-    // include "log: false" to disable logging
-    // or a "logLevel" integer from 0 to 7 to adjust logging verbosity
+let controller = Botkit.slackbot().configureSlackApp({
+  clientId: clientId,
+  clientSecret: clientSecret,
+  scopes: 'commands,bot'
 })
 
 // Initialize the app with a service account, granting admin privileges
@@ -89,14 +92,20 @@ controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
   // configure server for /Aside commands and all other outgoing webhooks
   // /Aside currently the only command sending outgoing webhooks
   // listen for POST requests at '/slack/receive'
-  controller.createWebhookEndpoints(webserver, asideToken)
+  // Each application can have only one slash command token, even if they have multiple commands associated with an app
+  controller.createWebhookEndpoints(webserver, slashToken)
 
   // uses __dirname + '/public'
   controller.createHomepageEndpoint(webserver)
 
-  // test route
-  webserver.get('/login', (req, res) => {
-    res.redirect('http://example.com')
+  // set up service for authenticating users
+  controller.createOauthEndpoints(webserver, (err, req, res) => {
+    if (err) {
+      // user oauth cancellation error handled by Slacbkot.js
+      res.status(500).send('ERROR: ' + err);
+    } else {
+      res.send('Success!')
+    }
   })
 })
 

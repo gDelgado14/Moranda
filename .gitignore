@@ -5,3 +5,5 @@ npm-debug.log
 .DS_Store
 res.json
 *.txt
+auth_access.json
+auth_test.json
