@@ -8,6 +8,20 @@ Module returns `CoreBot` obj.
 
 
 ---
+## Configuring `CoreBot`
+
+You can pass an optional object to corebot to configure it. 
+
+| param     | Description
+|-----------|---
+| debug     | turn debug mode on
+| log       | by default, log info to console. pass `false` to turn off logging
+| logLevel  |  integer from 0 to 7 to adjust logging verbosity
+| logger  |  override the logging functionality of Botkit
+| storage  (**commented out**) |  specify JSON storage for botkit
+
+
+
 ## `CoreBot` Methods & Objects
 
 ### `.utterances` obj

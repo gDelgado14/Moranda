@@ -242,10 +242,10 @@ function Slackbot(configuration) {
             scopes.join(',') + '&state=botkit';
 
         if (team_id) {
-            url = url + '&team=' + team_id;
+            url += '&team=' + team_id;
         }
         if (slack_botkit.config.redirectUri) {
-            url = url + '&redirect_uri=' + slack_botkit.config.redirectUri;
+            url += '&redirect_uri=' + slack_botkit.config.redirectUri;
         }
 
         return url;

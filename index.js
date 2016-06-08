@@ -80,6 +80,7 @@ let ggBot = controller.spawn({
 
 
 // global access to express server available through controller.webserver
+// __dirname + '/public' is location of landing page
 controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
   if (err) {
     throw new Error(err)
@@ -90,10 +91,13 @@ controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
   // listen for POST requests at '/slack/receive'
   controller.createWebhookEndpoints(webserver, asideToken)
 
-  // set up a landing page web route
-  // TODO: set up so it sends the actual landing page
-  // http://expressjs.com/en/starter/static-files.html
+  // uses __dirname + '/public'
   controller.createHomepageEndpoint(webserver)
+
+  // test route
+  webserver.get('/login', (req, res) => {
+    res.redirect('http://example.com')
+  })
 })
 
 // register slash command callback for /Aside
