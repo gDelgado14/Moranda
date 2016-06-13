@@ -3,11 +3,13 @@
  *	deploy with git push heroku botkit:master
  *
  * TODO:
- *  - remove SLACK_TOKEN and GG_BOT_TOKEN from .env
+ * 	- AsideData has been deleted
+ *  - remove uncaught throw statements and replace with bot msgs + returns. User replyPrivate
  *  - have a bug reporter set up on firebase
  * 	- replace test token with user tokens
  * 	- have @gg respond to empty mentions (i.e. '@gg') within groups and channels that @gg is in
  * 	- have @gg respond to DMs (use 'ambient' msg type)
+ * 	- Add aside to starred
  * 	- user friendly error messages - don't just throw uncaught errors
  * 		- Error: /Aside requires @invitees
  * 	- timestamp each Aside and remind users that they're still open
@@ -24,63 +26,47 @@
 
 const Botkit = require('./botkit')
 const config = require('./config')
-const firebase = require('firebase')
+const storage = require('./storage')
 const port = config('PORT')
-const botToken = config('GG_BOT_TOKEN')
-const userToken = config('SLACK_TOKEN') // token of auth'd user
+const botToken = config('GG_BOT_TOKEN') // TODO: remove
+const userToken = config('SLACK_TOKEN') // TODO: remove - token of auth'd user
 const clientId = config('CLIENT_ID')
 const clientSecret = config('CLIENT_SECRET')
 const slashToken = config('SLASH_COMMAND_TOKEN') // Each application can have only one slash command token, even if they have multiple commands associated with an app
 
 // controller is an instance of SlackBot
 // slackBot inherits properties of CoreBot
-let controller = Botkit.slackbot().configureSlackApp({
+// ask for the most basic permissions
+// and subsequently add more scopes as needed
+let controller = Botkit.slackbot({
+  storage: storage('https://project-3576296690235739912.firebaseio.com/', './dbaccount.json')
+}).configureSlackApp({
   clientId: clientId,
   clientSecret: clientSecret,
   scopes: 'commands,bot'
 })
 
-// Initialize the app with a service account, granting admin privileges
-// https://firebase.google.com/docs/database/server/start
-firebase.initializeApp({
-  databaseURL: 'https://project-3576296690235739912.firebaseio.com/',
-  serviceAccount: './dbaccount.json'
-})
+// shorthand for firebase db app
+let db = controller.storage
 
-// As an admin, the app has access to read and write all data, regardless of Security Rules
-// use firebase database service
-let db = firebase.database();
-let asideRef = db.ref('asides');
-let asideData = null
+// Make sure we don't
+// connect to the RTM twice for the same team
+let _bots = {};
+function trackBot(bot) {
+  _bots[bot.config.token] = bot;
+}
 
-asideRef.on('value', snapshot => {
-  asideData = snapshot.val()
-})
 
 // holds a representation of the current team
 let teamData = null
 
-// shorthand for ggBot.api
-let webAPI = null
+function addNewScopes(controller, src, scopes, bot) {
 
-// connect the bot to a stream of msgs
-// spawn returns an instance of worker (Slackbot_worker.js)
-// startRTM returns another instance of worker (Slackbot_worker.js)
-let ggBot = controller.spawn({
-  token: botToken
-}).startRTM((e, ggBot, res) => {
-  if (e) throw new Error(e)
-  teamData = {
-    teamInfo: res.team,
-    self: res.self,
-    channels: res.channels,
-    groups: res.groups,
-    ims: res.ims,
-    users: res.users
-  }
-  webAPI = ggBot.api
-})
+  let url = controller.getAuthorizeURL(null, scopes)
+  let msg = `please authorize with the following link.\n${url}\nTry your command once more after you have authorized.`
 
+  bot.replyPrivate(src, msg)
+}
 
 // global access to express server available through controller.webserver
 // __dirname + '/public' is location of landing page
@@ -99,15 +85,67 @@ controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
   controller.createHomepageEndpoint(webserver)
 
   // set up service for authenticating users
-  controller.createOauthEndpoints(webserver, (err, req, res) => {
-    if (err) {
-      // user oauth cancellation error handled by Slacbkot.js
-      res.status(500).send('ERROR: ' + err);
-    } else {
-      res.send('Success!')
-    }
-  })
+  // can pass optional cb with (err, req, res)
+  controller.createOauthEndpoints(webserver)
 })
+
+
+
+// Upon registering a team, spawn a bot
+// and then connect it to RTM
+// fired within createOauthEndpoints
+controller.on('create_bot',function(bot, config) {
+
+  if (_bots[bot.config.token]) {
+    // already online! do nothing.
+  } else {
+    bot.startRTM((err, bot, res) => {
+
+      if (!err) {
+        trackBot(bot);
+        // add bot data to firebase or update it if its already there
+        db.updateDB(res)
+          .then(() => {
+            console.log('>>>>>> successfully updated firebase!')
+
+            bot.startPrivateConversation({user: config.createdBy}, function(err,convo) {
+              if (err) {
+                console.log(err);
+              } else {
+
+                convo.say(`
+                  Oh, hey <@${config.createdBy}>! I'm so excited to be part of your team.
+
+                  I\'m currently in alpha so I cannot do too much at the moment.
+
+                  If you want to try out my current feature, just type \`/aside _topic_name_ @invitees\`
+
+                  This command will create an Aside: a private temporary group to discuss information.
+
+                  Once your conversation is over, I will help distribute the key takeways to their respective channels.
+
+                  That's it for now. Have a wonderful day.
+
+                  Here's another cute cat gif just for you.
+
+                  http://www.cutecatgifs.com/wp-content/uploads/2015/04/cute-aww.gif`)
+              }
+            });
+
+            return
+          })
+          .catch(e => {
+            console.log('errroorororrrr');
+            throw new Error(e)
+            return
+          })
+      }
+
+    });
+  }
+
+});
+
 
 // register slash command callback for /Aside
 // if other slash commands are created, this callback
@@ -121,117 +159,117 @@ controller.on('slash_command', (bot, message) => {
   // ==== response_type - ephemeral =====
   // bot.replyPrivate(message, 'Only the person who used the slash command can see this')
   //
-  //
+
   // to send information by way of slash command use `bot`
   // to communicate using @gg use global ggBot
+  console.log('slash_command - message: ')
+  console.log(message);
+  console.log('slash_command - bot: ');
+  console.log(bot);
 
-  // search for @ mentions and capture only the name mentioned
-  let regexp = /@(\w+)/gi
-  let match = regexp.exec(message.text)
-  let teamMembers = []
-  let groupTitle = message.text.replace(regexp, '').toLowerCase().trim()
+  let groupTitle = message.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
 
-  // while & for loop are O(n^2)
-  // TODO: there should be a key-value map / hash table storing name - id pairs
-  while (match) {
-    // match[1] contains name without @
-
-    // map character names to unique ids
-    let i = 0
-    for (i; i < teamData.users.length; i++) {
-      if (teamData.users[i].name === match[1]) {
-        teamMembers.push(teamData.users[i].id)
-        break // stop looping once user is mapped to id
+  db.getId(message.team_id, message.user_id, message.text)
+    .then(memberObject => {
+      // if no actual users mentioned then notify /Aside caller that this is required
+      if (!memberObject.teamMembers.length) {
+        throw new Error('/Aside requires @invitees')
       }
-    }
 
-    // look for additional matches
-    match = regexp.exec(message.text)
-  }
+      // shorthand for api methods
+      let webAPI = bot.api
+      let teamMembers = memberObject.teamMembers
+      let userToken = memberObject.token
 
-  // if no actual users mentioned then notify /Aside caller that this is required
-  if (!teamMembers.length) {
-    throw new Error('/Aside requires @invitees')
-  }
+      // add moranda id
+      teamMembers.push(bot.config.bot.user_id)
 
-  // add gg id. this assumes teamdata is being assigned
-  // a JSON response that comes from a RTM request made by gg
-  // otherwise self will contain data of someone else
-  teamMembers.push(teamData.self.id)
-
-  // TODO: Add group to starred
-  // pass userToken - auth'd user creates group
-  webAPI.groups.create({
-    token: userToken,
-    name: groupTitle
-  }, (e, response) => {
-    if (e) {
-      bot.replyPrivate(message, e)
-    }
-
-    // add newly created Aside group to firebase
-    // {} for dynamically creating child inside firebase
-    let literal = {}
-    literal[response.group.id] = true
-    asideRef.update(literal)
-
-    // add newly-created group to teamData
-    teamData.groups.push(response.group)
-
-    // add the mentioned members to the group
-    teamMembers.forEach(member => {
-      webAPI.groups.invite({
+      // TODO:
+      // pass userToken - auth'd user creates group
+      webAPI.groups.create({
         token: userToken,
-        channel: response.group.id,
-        user: member
-      }, (e) => {
-        if (e)
-          throw new Error(e)
+        name: groupTitle
+      }, (e, response) => {
+        if (e && e === 'missing_scope') {
 
-        // once Moranda in channel, initiate dialogue
-        if (member === teamData.self.id) {
-          let groupPurpose = message.text.replace(regexp, '')
-            // TODO: use propper formatting to get username hyperlinks
-            // https://api.slack.com/docs/formatting
-            //
-            // TODO: fetch bots name by referecing its ID
-            //
-            // use attachments if regular text formatting doesnt work
-            // https://api.slack.com/docs/attachments
-          let txt = `Welcome @${message.user_name + ', ' + message.text.match(regexp).join(', ')}!
-@${message.user_name} created this Aside and set the purpose to:
-> ${groupPurpose}
-When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
-Just @mention me in this sidebar and I'll take care of it: \`@gg done\``
+          // sends JSON response ...
+          // bot.replyPrivate(message, e)
 
-          // Have Aside caller set purpose of the aside
-          webAPI.groups.setPurpose({
-            token: userToken,
-            channel: response.group.id,
-            purpose: groupPurpose
-          }, e => {
-            if (e)
-              throw new Error(e)
+          addNewScopes(controller, message, ['groups:write', 'chat:write:bot'], bot)
+
+        } else {
+          console.log('>>>>> webAPI.groups.create');
+          // add newly created Aside group to firebase
+          // {} for dynamically creating child inside firebase
+          let aside = {}
+          aside.open = true
+          aside.purpose = groupTitle
+          aside.created = Date.now()
+          db.createAside(aside, response.group.id)
+
+          // add newly-created group to teamData
+          //teamData.groups.push(response.group)
+
+          // add the mentioned members to the group
+          teamMembers.forEach(member => {
+            webAPI.groups.invite({
+              token: userToken,
+              channel: response.group.id,
+              user: member
+            }, (e) => {
+              if (e)
+                throw new Error(e)
+
+              // once Moranda in channel, initiate dialogue
+              if (member === bot.config.bot.user_id) {
+
+                  // TODO: use propper formatting to get username hyperlinks
+                  // https://api.slack.com/docs/formatting
+                  //
+                  // TODO: fetch bots name by referecing its ID
+                  //
+                  // use attachments if regular text formatting doesnt work
+                  // https://api.slack.com/docs/attachments
+                let txt = `Welcome @${message.user_name + ', ' + message.text.match(/@(\w+)/gi).join(', ')}!
+      @${message.user_name} created this Aside and set the purpose to:
+      > ${groupTitle}
+      When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
+      Just @mention me in this sidebar and I'll take care of it: \`@gg done\``
+
+                // Have Aside caller set purpose of the aside
+                webAPI.groups.setPurpose({
+                  token: userToken,
+                  channel: response.group.id,
+                  purpose: groupTitle
+                }, e => {
+                  if (e)
+                    throw new Error(e)
+                })
+
+                // TODO: replace 'txt' w attachment. Formatting all wonky
+                // have Moranda say introductory statements
+                webAPI.chat.postMessage({
+                  token: bot.config.bot.token,
+                  channel: response.group.id,
+                  text: txt,
+                  as_user: true
+                }, e => {
+                  if (e)
+                    throw new Error(e)
+                })
+              }
+            })
           })
 
-          // have Moranda say introductory statements
-          webAPI.chat.postMessage({
-            token: botToken,
-            channel: response.group.id,
-            text: txt,
-            as_user: true
-          }, e => {
-            if (e)
-              throw new Error(e)
-          })
+          // let Slack servers know that things went well
+          // any string passed to .send() gets posted by slackbot
+          bot.res.status(200).send()
         }
-      })
-    })
-  })
 
-  // let Slack servers know that things went well
-  // any string passed to .send() gets posted by slackbot
-  bot.res.status(200).send()
+      })
+
+    })
+
 })
 
 // This handler gets triggered in any channel in which @gg is in, regardless of whether it's an aside or not
@@ -258,7 +296,7 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
             token: userToken,
             channel: message.channel
           })
-          asideRef.child(message.channel).set(false)
+          db.closeAside(message.channel)
 
         } else {
           console.log('ERROR: something happened that caused the conversation to stop prematurely. convo.status: ')
@@ -405,6 +443,8 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
 
 
 // update relevant teamData info
+// utility function for sharing summaries with other teams
+// TODO: simply save purpose info in firebase
 controller.on('group_purpose', (bot, message) => {
   // should only care if that channel is an OPEN Aside
   // closed and non-existent asides are falsey

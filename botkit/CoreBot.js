@@ -15,12 +15,7 @@ function Botkit(configuration) {
           config: {}, // this will hold the configuration
           tasks: [],
           taskCount: 0,
-          convoCount: 0,
-          memory_store: {
-              users: {},
-              channels: {},
-              teams: {}
-          }
+          convoCount: 0
       };
 
     botkit.utterances = {
@@ -975,10 +970,6 @@ function Botkit(configuration) {
     });
     botkit.debug = botkit.log.debug;
 
-    /*****************************************
-     * IMPLEMENT YOUR OWN STORAGE MODULE
-     ****************************************
-
     if (configuration.storage) {
         if (
             configuration.storage.teams &&
@@ -998,13 +989,10 @@ function Botkit(configuration) {
         } else {
             throw new Error('Storage object does not have all required methods!');
         }
-    } else if (configuration.json_file_store) {
-        botkit.log('** Using simple storage. Saving data to ' + configuration.json_file_store);
-        botkit.storage = simple_storage({path: configuration.json_file_store});
     } else {
         botkit.log('** No persistent storage method specified! Data may be lost when process shuts down.');
+        throw new Error('Storage object missing');
     }
-    **/
 
     // set the default set of ears to use the regular expression matching
     botkit.changeEars(botkit.hears_regexp);

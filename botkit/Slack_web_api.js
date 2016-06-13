@@ -28,7 +28,7 @@ module.exports = function(bot, config) {
                     if (json.ok && !json.warning) {
                         if (cb) cb(null, json);
                     } else {
-                        if (cb) cb(json.error, json);
+                        if (cb) cb(json.error || json.warning, json);
                     }
                 } else {
                     if (cb) cb(error || 'Invalid response');

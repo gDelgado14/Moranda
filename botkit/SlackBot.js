@@ -109,27 +109,28 @@ function Slackbot(configuration) {
                 if (slack_botkit.config.clientId && slack_botkit.config.clientSecret) {
 
                     slack_botkit.findTeamById(message.team_id, function(err, team) {
-                        if (err || !team) {
-                            slack_botkit.log.error('Received slash command, but could not load team');
-                        } else {
-                            console.log('==== 1 ====');
-                            message.type = 'slash_command';
-                            // HEY THERE
-                            // Slash commands can actually just send back a response
-                            // and have it displayed privately. That means
-                            // the callback needs access to the res object
-                            // to send an optional response.
 
-                            res.status(200);
+                      if (err || !team) {
+                          slack_botkit.log.error('Received slash command, but could not load team');
+                      } else {
+                          console.log('==== 1 ====');
+                          message.type = 'slash_command';
+                          // HEY THERE
+                          // Slash commands can actually just send back a response
+                          // and have it displayed privately. That means
+                          // the callback needs access to the res object
+                          // to send an optional response.
 
-                            var bot = slack_botkit.spawn(team);
+                          res.status(200);
 
-                            bot.team_info = team;
-                            bot.res = res;
+                          var bot = slack_botkit.spawn(team);
 
-                            slack_botkit.receiveMessage(bot, message);
+                          bot.team_info = team;
+                          bot.res = res;
 
-                        }
+                          slack_botkit.receiveMessage(bot, message);
+
+                      }
                     });
                 } else {
                     console.log('==== 2 ====');
@@ -195,17 +196,56 @@ function Slackbot(configuration) {
         return slack_botkit;
     };
 
+    slack_botkit.getUser = function(id, cb) {
+      slack_botkit.storage.users.get(id)
+        .then(snapshot => {
+          cb(null, snapshot.val())
+        })
+        .catch(err =>{
+          cb(err, null)
+        })
+    }
+
+    slack_botkit.saveUser = function(user, cb) {
+      slack_botkit.storage.users.save(user)
+        .then(() => {
+          cb(null, user.id)
+        })
+        .catch(err => {
+          cb(err, null)
+        })
+    }
+
+
     slack_botkit.saveTeam = function(team, cb) {
-        // REPLACE WITH FIREBASE
-        console.log('>>>>> slack_botkit.saveTeam - team: ', team)
-        slack_botkit.storage.teams.save(team, cb);
+      console.log('>>>>> slack_botkit.saveTeam - team: ', team)
+      slack_botkit.storage.teams.save(team, cb)
+        .then(() => {
+          cb(null, team.id)
+        })
+        .catch(e => {
+          // errorrrrrrrrrrrrr
+          cb(null, null)
+        })
     };
 
     // look up a team's memory and configuration and return it, or
     // return an error!
     slack_botkit.findTeamById = function(id, cb) {
         console.log('>>>>> slack_botkit.findTeamById - id: ', id)
-        slack_botkit.storage.teams.get(id, cb);
+        slack_botkit.storage.teams.get(id)
+          .then(snapshot => {
+            if (snapshot.exists()) {
+              cb(null, snapshot.val())
+            } else {
+              // no error, but this team does not exists
+              cb(null, null)
+            }
+          })
+          .catch(error =>  {
+            console.log('inside get promise .catch', error)
+            cb(error, null)
+          })
     };
 
     slack_botkit.setupWebserver = function(port, landingPageDir, cb) {
@@ -237,21 +277,31 @@ function Slackbot(configuration) {
     };
 
     // get a team url to redirect the user through oauth process
-    slack_botkit.getAuthorizeURL = function(team_id) {
+    // scopes is optional
+    slack_botkit.getAuthorizeURL = function(team_id, optionalScopes) {
+
+        // either user provides an array of scope strings or none at all
+        if (optionalScopes && optionalScopes.constructor === Array) {
+          var scopes = optionalScopes
+        } else if (!optionalScopes) {
+          var scopes = slack_botkit.config.scopes
+        } else {
+          throw new Error('Must pass array of string scopes or no scopes at all')
+        }
 
         var url = 'https://slack.com/oauth/authorize';
-        var scopes = slack_botkit.config.scopes;
-        url = url + '?client_id=' + slack_botkit.config.clientId + '&scope=' +
-            scopes.join(',') + '&state=botkit';
+
+        url += '?client_id=' + slack_botkit.config.clientId + '&scope=' +
+            scopes.join(',') + '&state=botkit'
 
         if (team_id) {
-            url += '&team=' + team_id;
+            url += '&team=' + team_id
         }
         if (slack_botkit.config.redirectUri) {
-            url += '&redirect_uri=' + slack_botkit.config.redirectUri;
+            url += '&redirect_uri=' + slack_botkit.config.redirectUri
         }
 
-        return url;
+        return url
 
     };
 
@@ -333,7 +383,8 @@ function Slackbot(configuration) {
                     if (callback) {
                         callback(err, req, res);
                     } else {
-                        res.status(500).send(err);
+                      console.log(' ******* 1 *********');
+                      res.status(500).send(err);
                     }
                     slack_botkit.trigger('oauth_error', [err]);
                 } else {
@@ -350,6 +401,7 @@ function Slackbot(configuration) {
                     // what scopes did we get approved for?
                     var scopes = auth.scope.split(/\,/);
                     console.log('>>> auth_access - auth', auth)
+
                     // temporarily use the token we got from the oauth
                     // we need to call auth.test to make sure the token is valid
                     // but also so that we reliably have the team_id field!
@@ -360,6 +412,7 @@ function Slackbot(configuration) {
                             if (callback) {
                                 callback(err, req, res);
                             } else {
+                              console.log(' ******* 2 *********');
                                 res.status(500).send(err);
                             }
 
@@ -375,8 +428,11 @@ function Slackbot(configuration) {
 
                             slack_botkit.findTeamById(identity.team_id, function(err, team) {
 
+                                if (err) throw new Error(err)
+
                                 var isnew = false;
                                 if (!team) {
+                                    console.log('>>>> .findTeamById - no team found')
                                     isnew = true;
                                     team = {
                                         id: identity.team_id,
@@ -412,6 +468,7 @@ function Slackbot(configuration) {
                                         if (callback) {
                                             callback(err, req, res);
                                         } else {
+                                          console.log(' ******* 3 *********');
                                             res.status(500).send(err);
                                         }
                                         slack_botkit.trigger('error', [err]);
@@ -422,7 +479,7 @@ function Slackbot(configuration) {
                                             slack_botkit.trigger('update_team', [bot, team]);
                                         }
 
-                                        slack_botkit.storage.users.get(identity.user_id, function(err, user) {
+                                        slack_botkit.getUser(identity.user_id, function(err, user) {
                                             isnew = false;
                                             if (!user) {
                                                 isnew = true;
@@ -431,30 +488,33 @@ function Slackbot(configuration) {
                                                     access_token: auth.access_token,
                                                     scopes: scopes,
                                                     team_id: identity.team_id,
-                                                    user: identity.user,
+                                                    user: identity.user
                                                 };
                                             }
-                                            slack_botkit.storage.users.save(user, function(err, id) {
-
+                                            slack_botkit.saveUser(user, function(err, id) {
                                                 if (err) {
-                                                    slack_botkit.log.error(
-                                                        'An error occurred while saving a user: ', err);
+                                                    slack_botkit.log.error('An error occurred while saving a user: ', err);
+
                                                     if (callback) {
-                                                        callback(err, req, res);
+                                                      callback(err, req, res);
                                                     } else {
-                                                        res.status(500).send(err);
+                                                      console.log(' ******* 4 *********');
+                                                      res.status(500).send(err);
                                                     }
+
                                                     slack_botkit.trigger('error', [err]);
                                                 } else {
                                                     if (isnew) {
-                                                        slack_botkit.trigger('create_user', [bot, user]);
+                                                      slack_botkit.trigger('create_user', [bot, user]);
                                                     } else {
-                                                        slack_botkit.trigger('update_user', [bot, user]);
+                                                      slack_botkit.trigger('update_user', [bot, user]);
                                                     }
+
                                                     if (callback) {
-                                                        callback(null, req, res);
+                                                      callback(null, req, res);
                                                     } else {
-                                                        res.redirect('/');
+                                                      console.log('>>>> redirecting ....');
+                                                      res.redirect('/');
                                                     }
                                                 }
                                             });
