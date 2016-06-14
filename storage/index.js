@@ -19,7 +19,7 @@ function Storage(url, accountInfo) {
     teams: {
       get: function(id) {
         // return promise with dataSnapshot
-        return db.ref('teams/' + id).once('value')
+        return db.ref(`teams/${id}`).once('value')
       },
       save: function(team) {
         if (!team.id) {
@@ -28,16 +28,29 @@ function Storage(url, accountInfo) {
           return db.ref('teams/' + team.id).update(team)
         }
       },
-      all: 3
+      all: function() {
+        return db.ref('teams').once('value')
+      }
     },
     users: {
-      get: function(id) {
-        if (!id) {
-          return Promise.reject('No ID specified')
+      get: function(identity) {
+        let team = null
+        let user = null
+        if (identity.team_id && identity.user_id) {
+          team = identity.team_id
+          user = identity.user_id
+        } else if (identity.team && identity.user) {
+          team = identity.team
+          user = identity.user
+        } else if (identity.team_id && identity.id) {
+          team = identity.team_id
+          user = identity.id
         } else {
-          // return promise with dataSnapshot
-          return db.ref('users/' + id).once('value')
+          return Promise.reject('object must contain team id and user id properties')
         }
+        // return promise with dataSnapshot
+        return db.ref(`users/${team}/${user}`).once('value')
+
       },
       save: function(user) {
         if (!user.id) {
@@ -45,6 +58,8 @@ function Storage(url, accountInfo) {
         } else {
           // create user reference ordered by team_id
           // create username reference ordered by team_id
+          console.log('>>>>>> users.save - user')
+          console.log(user)
           return db.ref(`users/${user.team_id}/${user.id}`).update(user)
         }
       },
@@ -54,6 +69,22 @@ function Storage(url, accountInfo) {
       get: 1,
       save: 2,
       all: 3
+    },
+    asides: {
+      get: function(response) {
+        if (!response.team || !response.channel) {
+          return Promise.reject('must specify teamid and userid')
+        }
+        return db.ref(`asides/${response.team}/${response.channel}`).once('value')
+      },
+      save: function(asideData, teamId, asideId) {
+        return db.ref(`asides/${teamId}/${asideId}`).update(asideData)
+      }
+    },
+    images: {
+      get: function(teamId, userId) {
+        return db.ref(`images/${teamId}/${userId}`).once('value')
+      }
     }
   }
 
@@ -71,14 +102,13 @@ function Storage(url, accountInfo) {
     // get their name so that we may cross reference their name with their uid
 
     let activeUsers = {}
-    let userImages = {}
     teamData.users.forEach(user => {
       if (!user.deleted) {
         activeUsers[user.id] = {
           scopes: false,
-          user: user.name
+          user: user.name,
+          img: user.profile.image_24
         }
-        userImages[user.id] = user.profile.image_24
       }
     })
 
@@ -96,17 +126,20 @@ function Storage(url, accountInfo) {
               console.log(childSnapshot.key);
               console.log(childSnapshot.val())
 
+              // replace activeusers node with existing value in firebase
+              // but append img property to existing firebase value
+              let img = activeUsers[childSnapshot.key].img
               activeUsers[childSnapshot.key] = childSnapshot.val()
+              activeUsers[childSnapshot.key].img = img
             })
           }
 
           console.log('>>>>> activeUsers')
           console.log(activeUsers)
 
-          Promise.all([
-            db.ref(`users/${teamData.team.id}`).update(activeUsers),
-            db.ref(`images/${teamData.team.id}`).update(userImages)
-          ])
+
+          db.ref(`users/${teamData.team.id}`).update(activeUsers)
+
 
         })
     )
@@ -164,21 +197,35 @@ function Storage(url, accountInfo) {
   }
 
   /**
-   * creates a reference in firebase for a newly-created aside
-   * @param  {obj} asideData     object literal containing true and group purpose
-   * @return {Promise}           [description]
-   */
-  storage.createAside = function(asideData, asideId) {
-    return db.ref(`asides/${asideId}`).update(asideData)
-  }
-
-  /**
    * set an aside as closed in Firebase
    * @param  {Number}   asideId    the id of the aside (group id)
    * @return {Promise}
    */
-  storage.closeAside = function(asideId) {
-    return db.ref(`asides/${asideId}`).child('open').set(false)
+  storage.closeAside = function(identity, summary) {
+    console.log('>>>> closeAside identity')
+    console.log(identity)
+    if (!identity.team || !identity.channel) {
+      return Promise.reject('must specify teamid and userid')
+    }
+    return db.ref(`asides/${identity.team}/${identity.channel}`).update({
+      open: false,
+      summary: summary
+    })
+  }
+
+  storage.isOpenAside = function(message) {
+    if (!message.team || !message.channel) {
+      return Promise.reject('must specify teamid and userid')
+    }
+    return (
+      db.ref(`asides/${message.team}/${message.channel}`).once('value')
+        .then(snapshot => {
+          console.log('isOpenAside snapshot.val(): ')
+          console.log(snapshot.val())
+          return snapshot.val().open
+        })
+    )
+
   }
 
   return storage

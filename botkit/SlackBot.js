@@ -196,8 +196,8 @@ function Slackbot(configuration) {
         return slack_botkit;
     };
 
-    slack_botkit.getUser = function(id, cb) {
-      slack_botkit.storage.users.get(id)
+    slack_botkit.getUser = function(identity, cb) {
+      slack_botkit.storage.users.get(identity)
         .then(snapshot => {
           cb(null, snapshot.val())
         })
@@ -358,6 +358,8 @@ function Slackbot(configuration) {
         slack_botkit.log('** Serving oauth return endpoint: http://MY_HOST:' + slack_botkit.config.port + '/oauth');
 
         webserver.get('/oauth', function(req, res) {
+            console.log('>>>> GET /oauth')
+
             // access_denied can get passed when user cancels oauth flow
             if (req.query.error && req.query.error === 'access_denied') {
                 console.log('>>> oauth error: ', req.query.error)
@@ -383,7 +385,6 @@ function Slackbot(configuration) {
                     if (callback) {
                         callback(err, req, res);
                     } else {
-                      console.log(' ******* 1 *********');
                       res.status(500).send(err);
                     }
                     slack_botkit.trigger('oauth_error', [err]);
@@ -412,7 +413,6 @@ function Slackbot(configuration) {
                             if (callback) {
                                 callback(err, req, res);
                             } else {
-                              console.log(' ******* 2 *********');
                                 res.status(500).send(err);
                             }
 
@@ -479,7 +479,7 @@ function Slackbot(configuration) {
                                             slack_botkit.trigger('update_team', [bot, team]);
                                         }
 
-                                        slack_botkit.getUser(identity.user_id, function(err, user) {
+                                        slack_botkit.getUser(identity, function(err, user) {
                                             isnew = false;
                                             if (!user) {
                                                 isnew = true;
@@ -490,6 +490,8 @@ function Slackbot(configuration) {
                                                     team_id: identity.team_id,
                                                     user: identity.user
                                                 };
+                                            } else if (user.scopes !== scopes) {
+                                              user.scopes = scopes
                                             }
                                             slack_botkit.saveUser(user, function(err, id) {
                                                 if (err) {
