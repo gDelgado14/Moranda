@@ -5,8 +5,8 @@ var Slackbot = require(__dirname + '/SlackBot.js')
 // var TwilioIPMbot = require(__dirname + '/TwilioIPMBot.js')
 
 module.exports = {
-    core: CoreBot,
-    slackbot: Slackbot
-};
-    // facebookbot: Facebookbot,
-    // twilioipmbot: TwilioIPMbot
+  core: CoreBot,
+  slackbot: Slackbot
+}
+// facebookbot: Facebookbot,
+// twilioipmbot: TwilioIPMbot

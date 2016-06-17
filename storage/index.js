@@ -2,7 +2,7 @@
 
 const Firebase = require('firebase')
 
-function Storage(url, accountInfo) {
+function Storage (url, accountInfo) {
 
   // Initialize the app with a service account, granting admin privileges
   // https://firebase.google.com/docs/database/server/start
@@ -17,23 +17,23 @@ function Storage(url, accountInfo) {
   // added to obj immediately
   let storage = {
     teams: {
-      get: function(id) {
+      get: function (id) {
         // return promise with dataSnapshot
         return db.ref(`teams/${id}`).once('value')
       },
-      save: function(team) {
+      save: function (team) {
         if (!team.id) {
           return Promise.reject('No ID specified')
         } else {
           return db.ref('teams/' + team.id).update(team)
         }
       },
-      all: function() {
+      all: function () {
         return db.ref('teams').once('value')
       }
     },
     users: {
-      get: function(identity) {
+      get: function (identity) {
         let team = null
         let user = null
         if (identity.team_id && identity.user_id) {
@@ -50,9 +50,8 @@ function Storage(url, accountInfo) {
         }
         // return promise with dataSnapshot
         return db.ref(`users/${team}/${user}`).once('value')
-
       },
-      save: function(user) {
+      save: function (user) {
         if (!user.id) {
           return Promise.reject('No ID specified')
         } else {
@@ -71,18 +70,18 @@ function Storage(url, accountInfo) {
       all: 3
     },
     asides: {
-      get: function(response) {
+      get: function (response) {
         if (!response.team || !response.channel) {
           return Promise.reject('must specify teamid and userid')
         }
         return db.ref(`asides/${response.team}/${response.channel}`).once('value')
       },
-      save: function(asideData, teamId, asideId) {
+      save: function (asideData, teamId, asideId) {
         return db.ref(`asides/${teamId}/${asideId}`).update(asideData)
       }
     },
     images: {
-      get: function(teamId, userId) {
+      get: function (teamId, userId) {
         return db.ref(`images/${teamId}/${userId}`).once('value')
       }
     }
@@ -94,7 +93,7 @@ function Storage(url, accountInfo) {
    * @param  obj - teamData obj literal containing team data - see res.json for payload example
    * @return Promise          promise that resolves once all operations completed
    */
-  storage.updateDB = function(teamData) {
+  storage.updateDB = function (teamData) {
     // we only care about non-deleted users
     // get data for active team members
     // set 'scopes' to false so that we know
@@ -113,39 +112,34 @@ function Storage(url, accountInfo) {
     })
 
     return (
-      db.ref(`users/${teamData.team.id}`).once('value')
-        .then(snapshot => {
+    db.ref(`users/${teamData.team.id}`).once('value')
+      .then(snapshot => {
 
-          console.log('>>>>> DataSnapshot')
-          console.log(snapshot.val())
+        console.log('>>>>> DataSnapshot')
+        console.log(snapshot.val())
 
-          if (snapshot.exists()) {
-            snapshot.forEach(childSnapshot => {
+        if (snapshot.exists()) {
+          snapshot.forEach(childSnapshot => {
 
-              console.log('>>>>> ChildSnapshot')
-              console.log(childSnapshot.key);
-              console.log(childSnapshot.val())
+            console.log('>>>>> ChildSnapshot')
+            console.log(childSnapshot.key)
+            console.log(childSnapshot.val())
 
-              // replace activeusers node with existing value in firebase
-              // but append img property to existing firebase value
-              let img = activeUsers[childSnapshot.key].img
-              activeUsers[childSnapshot.key] = childSnapshot.val()
-              activeUsers[childSnapshot.key].img = img
-            })
-          }
+            // replace activeusers node with existing value in firebase
+            // but append img property to existing firebase value
+            let img = activeUsers[childSnapshot.key].img
+            activeUsers[childSnapshot.key] = childSnapshot.val()
+            activeUsers[childSnapshot.key].img = img
+          })
+        }
 
-          console.log('>>>>> activeUsers')
-          console.log(activeUsers)
+        console.log('>>>>> activeUsers')
+        console.log(activeUsers)
 
-
-          db.ref(`users/${teamData.team.id}`).update(activeUsers)
-
-
-        })
+        db.ref(`users/${teamData.team.id}`).update(activeUsers)
+      })
     )
-
   }
-
 
   /**
    * get id of username
@@ -156,8 +150,8 @@ function Storage(url, accountInfo) {
    *
    * TODO: there should be a key-value map / hash table storing name - id pairs
    */
-  storage.getId = function(teamId, ownerId, text) {
-    console.log('>>>>> Inside storage.getId');
+  storage.getId = function (teamId, ownerId, text) {
+    console.log('>>>>> Inside storage.getId')
     // search for @ mentions and capture only the name mentioned
     let regexp = /@(\w+)/gi
     let match = regexp.exec(text)
@@ -165,35 +159,33 @@ function Storage(url, accountInfo) {
     let token = null
 
     return (
-      db.ref(`users/${teamId}`).once('value')
-        .then(snapshot => {
+    db.ref(`users/${teamId}`).once('value')
+      .then(snapshot => {
 
-          let userData = snapshot.val()
-          let keys = Object.keys(userData)
+        let userData = snapshot.val()
+        let keys = Object.keys(userData)
 
-          while (match) {
-            let i = 0
-            for (i; i < keys.length; i++) {
-              // match[1] contains name without @
-              if (userData[keys[i]].user === match[1]) {
-                teamMembers.push(keys[i])
-                break
-              }
-
+        while (match) {
+          let i = 0
+          for (i; i < keys.length; i++) {
+            // match[1] contains name without @
+            if (userData[keys[i]].user === match[1]) {
+              teamMembers.push(keys[i])
+              break
             }
-            // look for additional matches
-            match = regexp.exec(text)
           }
+          // look for additional matches
+          match = regexp.exec(text)
+        }
 
-          token = userData[ownerId].access_token
+        token = userData[ownerId].access_token
 
-          return {
-            teamMembers: teamMembers,
-            token: token
-          }
-        })
+        return {
+          teamMembers: teamMembers,
+          token: token
+        }
+      })
     )
-
   }
 
   /**
@@ -201,7 +193,7 @@ function Storage(url, accountInfo) {
    * @param  {Number}   asideId    the id of the aside (group id)
    * @return {Promise}
    */
-  storage.closeAside = function(identity, summary) {
+  storage.closeAside = function (identity, summary) {
     console.log('>>>> closeAside identity')
     console.log(identity)
     if (!identity.team || !identity.channel) {
@@ -213,23 +205,21 @@ function Storage(url, accountInfo) {
     })
   }
 
-  storage.isOpenAside = function(message) {
+  storage.isOpenAside = function (message) {
     if (!message.team || !message.channel) {
       return Promise.reject('must specify teamid and userid')
     }
     return (
-      db.ref(`asides/${message.team}/${message.channel}`).once('value')
-        .then(snapshot => {
-          console.log('isOpenAside snapshot.val(): ')
-          console.log(snapshot.val())
-          return snapshot.val().open
-        })
+    db.ref(`asides/${message.team}/${message.channel}`).once('value')
+      .then(snapshot => {
+        console.log('isOpenAside snapshot.val(): ')
+        console.log(snapshot.val())
+        return snapshot.val().open
+      })
     )
-
   }
 
   return storage
-
 }
 
 module.exports = Storage

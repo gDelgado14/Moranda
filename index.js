@@ -1,10 +1,23 @@
+// Moranda source code
+// (c) 2016 Giorgio Delgado
+
+
+
 /**
  *
  *	deploy with git push heroku botkit:master
  *
+ *  managing multiple heroku environments
+ *	https://devcenter.heroku.com/articles/multiple-environments#advanced-linking-local-branches-to-remote-apps
+ *
  * TODO:
- *  - remove uncaught throw statements and replace with bot msgs + returns. User replyPrivate
+ *  - Only I have the ability to go throw the 'done' aside flow.
+ *  	- Auth other users before they can use this funcitonality???
  *  - have a bug reporter set up on firebase
+ *  - listen to events that change the composition of a team or an aside
+ *  	- type: team_join etc ..
+ *  		- moranda can't find newly added team members
+ *  	- type: message, subtype: group_unarchive
  * 	- replace test token with user tokens
  * 	- update scopes node for each user that upgrades their scopes
  * 	- listen for archive events. If a user manually archives an Aside without using moranda, Firebase should be aware of the change
@@ -15,7 +28,7 @@
  * 		- Error: /Aside requires @invitees
  * 	- timestamp each Aside and remind users that they're still open
  * 	- close asides automatically for people ??
- * 	- have a /feedback aside
+ * 	- have a /feedback slash command
  * 	- have a help command
  * 	- set up 'message' event handlers to maintain updated state with slack
  * 		- type: message  --> subtype: channel_purpose
@@ -50,12 +63,6 @@ let controller = Botkit.slackbot({
 // shorthand for firebase db app
 let db = controller.storage
 
-// Make sure we don't
-// connect to the RTM twice for the same team
-let _bots = {};
-function trackBot(bot) {
-  _bots[bot.config.token] = bot;
-}
 
 // holds a representation of the current team
 let teamData = null
@@ -112,6 +119,13 @@ function dmSummary(response, convo, bot) {
   })
 }
 
+/**
+ * Share a user's Aside summary with the provided channels
+ * @param  {Object} response Object containing response data
+ * @param  {Object} convo    Object containing conversational methods and past messages
+ * @param  {Object} bot      Object containing a team's bot
+ * @return {Undefined}       No return specified
+ */
 function shareSummary(response, convo, bot) {
   let channelRegex = /<#(\w+)>/gi
   let match = channelRegex.exec(response.text)
@@ -136,7 +150,6 @@ function shareSummary(response, convo, bot) {
   console.log(channels)
 
   // TODO: move each users image to their corresponding node in the 'users' reference
-
   Promise.all([
     db.asides.get(response).then(snapshot => {
       let aside = snapshot.val()
@@ -185,6 +198,7 @@ function shareSummary(response, convo, bot) {
           // TODO: invite bot programmatically
           // https://api.slack.com/methods/channels.invite
           console.log('>>>>>>> not_in_channe')
+          // https://github.com/howdyai/botkit/blob/master/readme.md#conversationask
           convo.ask(
             `Woah! It seems like I\'m not in <#${channel}>.\nAll you gotta do is invite me: \`/invite <@${bot.config.bot.user_id}> <#${channel}>\`.\nOr just say \`cancel\``,
             [
@@ -203,7 +217,7 @@ function shareSummary(response, convo, bot) {
                 }
               }
             ])
-        } else {
+        } else if (e) { // throw for all other errors
           throw new Error(e)
         }
         // convo.repeat ???
@@ -245,7 +259,21 @@ function closeConversation(bot, msg) {
               webAPI.groups.archive({
                 token: userToken,
                 channel: msg.channel
-              })
+              }) // TODO: have some sort of error handling
+
+              // *******************************************************
+              //  TESTING TESTING TESTING TESTING TESTING TESTING TESTING
+              // *******************************************************
+
+              // webAPI.groups.close({
+                // token: userToken,
+                // channel: msg.channel
+              // }) // TODO: have some sort of error handling
+
+              // *******************************************************
+              //  TESTING TESTING TESTING TESTING TESTING TESTING TESTING
+              // *******************************************************
+
               db.closeAside(msg, c.extractResponse('summary'))
 
             } else {
@@ -344,7 +372,7 @@ controller.on('create_bot',function(bot, config) {
     bot.startRTM((err, bot, res) => {
 
       if (!err) {
-        trackBot(bot);
+        controller.trackBot(bot);
         // add bot data to firebase or update it if its already there
         db.updateDB(res)
           .then(() => {
@@ -422,6 +450,10 @@ controller.on('slash_command', (bot, message) => {
           // bot.replyPrivate(message, e)
 
           addNewScopes(message, bot)
+        } else if (e && e === 'name_taken') {
+          // TODO: rename closed aside and then try this call once more
+          // if the aside name that is colliding with this one is open then rename it
+          throw new Error('name_taken')
         } else {
           console.log('>>>>> webAPI.groups.create - response');
           // add newly created Aside group to firebase
@@ -512,6 +544,7 @@ controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
   db.isOpenAside(message)
     .then(open => {
       if (open) {
+        console.log('done event listener - aside is open');
         closeConversation(bot, message)
       }
     })
@@ -529,7 +562,7 @@ db.teams.all()
           if (err) {
             console.log('Error connecting bot to Slack:',err);
           } else {
-            trackBot(bot)
+            controller.trackBot(bot)
           }
         })
       }
