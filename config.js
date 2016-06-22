@@ -1,8 +1,6 @@
-
 'use strict'
 
-
-if (!process.env.NODE_ENV) require('dotenv').load()
+// heroku Local reads configuration variables from a .env file
 
 const config = {
   ENV: process.env.NODE_ENV,

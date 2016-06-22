@@ -3,7 +3,13 @@ old.js
 .env
 npm-debug.log
 .DS_Store
-res.json
+
 *.txt
+
+# sample output from Slack API responses
 auth_access.json
 auth_test.json
+res.json
+
+# VS Code stuff
+.vscode

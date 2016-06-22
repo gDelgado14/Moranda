@@ -152,6 +152,10 @@ function Storage (url, accountInfo) {
    */
   storage.getId = function (teamId, ownerId, text) {
     console.log('>>>>> Inside storage.getId')
+    console.log(teamId)
+    console.log(ownerId)
+    console.log(text)
+
     // search for @ mentions and capture only the name mentioned
     let regexp = /@(\w+)/gi
     let match = regexp.exec(text)
@@ -161,10 +165,11 @@ function Storage (url, accountInfo) {
     return (
     db.ref(`users/${teamId}`).once('value')
       .then(snapshot => {
+        // let match = regexp.exec(message.text)
 
         let userData = snapshot.val()
         let keys = Object.keys(userData)
-
+        console.log('match before: ', match)
         while (match) {
           let i = 0
           for (i; i < keys.length; i++) {
@@ -177,7 +182,7 @@ function Storage (url, accountInfo) {
           // look for additional matches
           match = regexp.exec(text)
         }
-
+        console.log('match after: ', match)
         token = userData[ownerId].access_token
 
         return {
