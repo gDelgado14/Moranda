@@ -364,7 +364,7 @@ controller.on('update_user', (bot, user) => {
 // Upon registering a team, spawn a bot
 // and then connect it to RTM
 // fired within createOauthEndpoints
-controller.on('create_bot',function(bot, config) {
+controller.on('create_bot', function(bot, config) {
 
   if (_bots[bot.config.token]) {
     // already online! do nothing.
@@ -391,7 +391,6 @@ controller.on('create_bot',function(bot, config) {
           .catch(e => {
             console.log('errroorororrrr');
             throw new Error(e)
-            return
           })
       }
 
@@ -404,6 +403,8 @@ controller.on('create_bot',function(bot, config) {
 // register slash command callback for /Aside
 // if other slash commands are created, this callback
 // must then filter to see which specific command was executed
+// only the slash commands configured to POST to our URL will trigger
+// this handler
 controller.on('slash_command', (bot, message) => {
   // TODO: this command might require additional permisisons from the user
   //
