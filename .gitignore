@@ -3,6 +3,7 @@ old.js
 .env
 npm-debug.log
 .DS_Store
+temp
 
 *.txt
 

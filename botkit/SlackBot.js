@@ -1,3 +1,5 @@
+'use strict'
+
 var Botkit = require('./CoreBot.js')
 var request = require('request')
 var express = require('express')
@@ -215,11 +217,12 @@ function Slackbot (configuration) {
   // look up a team's memory and configuration and return it, or
   // return an error!
   slack_botkit.findTeamById = function (id, cb) {
-    console.log('>>>>> slack_botkit.findTeamById - id: ', id)
     slack_botkit.storage.teams.get(id)
       .then(snapshot => {
-        if (snapshot.exists()) {
-          cb(null, snapshot.val())
+        let exists = snapshot.exists()
+        let team = snapshot.val() 
+        if (exists) {
+          cb(null, team)
         } else {
           // no error, but this team does not exists
           cb(null, null)

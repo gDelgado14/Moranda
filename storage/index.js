@@ -1,5 +1,7 @@
 'use strict'
 
+// import {} from 'utils'
+
 const Firebase = require('firebase')
 
 function Storage (url, accountInfo) {
@@ -62,7 +64,9 @@ function Storage (url, accountInfo) {
           return db.ref(`users/${user.team_id}/${user.id}`).update(user)
         }
       },
-      all: 3
+      all: function(id) {
+        return db.ref(`users/${id}`).once('value')
+      }
     },
     channels: {
       get: 1,
@@ -142,55 +146,15 @@ function Storage (url, accountInfo) {
   }
 
   /**
-   * get id of username
-   * @param  {String}   teamId  Slack id of team
-   * @param  {String}   text    message text to parse for username mentions
-   * @param  {String}   owner   the user who called the command
-   * @return {Promise}          promise with object containing array of user ids and user access token
+   * get id of username  message.team_id, message.user_id, message.text
+   * @param  {Object}   message  contains [.team_id, .user_id, .text]
+   * @return {Promise}           promise with object containing array of user ids and user access token
    *
-   * TODO: there should be a key-value map / hash table storing name - id pairs
    */
-  storage.getId = function (teamId, ownerId, text) {
-    console.log('>>>>> Inside storage.getId')
-    console.log(teamId)
-    console.log(ownerId)
-    console.log(text)
+  storage.getId = function (msg) {
 
-    // search for @ mentions and capture only the name mentioned
-    let regexp = /@(\w+)/gi
-    let match = regexp.exec(text)
-    let teamMembers = []
-    let token = null
-
-    return (
-    db.ref(`users/${teamId}`).once('value')
-      .then(snapshot => {
-        // let match = regexp.exec(message.text)
-
-        let userData = snapshot.val()
-        let keys = Object.keys(userData)
-        console.log('match before: ', match)
-        while (match) {
-          let i = 0
-          for (i; i < keys.length; i++) {
-            // match[1] contains name without @
-            if (userData[keys[i]].user === match[1]) {
-              teamMembers.push(keys[i])
-              break
-            }
-          }
-          // look for additional matches
-          match = regexp.exec(text)
-        }
-        console.log('match after: ', match)
-        token = userData[ownerId].access_token
-
-        return {
-          teamMembers: teamMembers,
-          token: token
-        }
-      })
-    )
+    return storage.users.all(msg.team_id)
+            .then(snapshot => returnIds(snapshot))
   }
 
   /**
@@ -222,6 +186,42 @@ function Storage (url, accountInfo) {
         return snapshot.val().open
       })
     )
+  }
+
+  /**
+   * @param {Object} s - firebase snapshot containing JSON object of users node 
+   * @returns 
+   */ 
+  function returnIds(s) {
+
+    let userData = s.val()
+    let keys = Object.keys(userData)
+    // search for @ mentions and capture only the name mentioned
+    let regexp = /@(\w+)/gi
+    let match = regexp.exec(text)
+    let teamMembers = []
+    let token = null
+
+    // get userid's of mentioned teammembers within text
+    while (match) {
+      let i = 0
+      for (i; i < keys.length; i++) {
+        // match[1] contains name without @
+        if (userData[keys[i]].user === match[1]) {
+          teamMembers.push(keys[i])
+          break
+        }
+      }
+      // look for additional matches
+      match = regexp.exec(text)
+    }
+
+    token = userData[ownerId].access_token
+
+    return {
+      teamMembers: teamMembers,
+      token: token
+    }
   }
 
   return storage
