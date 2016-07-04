@@ -2,16 +2,32 @@
 
 // const controller = require('../controller')
 
-function handleAsides(bot, msg) {
+/** 
+ * return userId 
+ * @param {Object} message - message object from slack
+ */
+function getId (message) {
+  let db = this.storage // this is undefined
+  db.getId(msg)
+    .then(snapshot => {
+      let someVar = snapshot.val()
+    })
+}
+
+function handleAsides (bot, msg) {
+
+    // let aside = new Aside(bot, msg)
+
     // to send information by way of slash command use `bot`
     // to communicate using @gg use global ggBot
 
-    let groupTitle = message.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
-    let dummy = null
+    let groupTitle = msg.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
+
 
     // have controller function that manages firebase
-    
-    db.getId(message)
+    let testVariable = getId(msg)
+
+    db.getId(msg)
     .then(memberObject => {
       // if no actual users mentioned then notify /Aside caller that this is required
       if (!memberObject.teamMembers.length) {
@@ -37,7 +53,7 @@ function handleAsides(bot, msg) {
           // sends JSON response ...
           // bot.replyPrivate(message, e)
 
-          addNewScopes(message, bot)
+          addNewScopes(msg, bot)
         } else if (e && e === 'name_taken') {
           // TODO: rename closed aside and then try this call once more
           // if the aside name that is colliding with this one is open then rename it
@@ -51,7 +67,7 @@ function handleAsides(bot, msg) {
           aside.open = true
           aside.purpose = groupTitle
           aside.created = Date.now()
-          db.asides.save(aside, message.team_id, response.group.id)
+          db.asides.save(aside, msg.team_id, response.group.id)
 
           // add newly-created group to teamData
           //teamData.groups.push(response.group)
@@ -76,8 +92,8 @@ function handleAsides(bot, msg) {
                   //
                   // use attachments if regular text formatting doesnt work
                   // https://api.slack.com/docs/attachments
-                let txt = `Welcome @${message.user_name + ', ' + message.text.match(/@(\w+)/gi).join(', ')}!
-@${message.user_name} created this Aside and set the purpose to:
+                let txt = `Welcome @${msg.user_name + ', ' + msg.text.match(/@(\w+)/gi).join(', ')}!
+@${msg.user_name} created this Aside and set the purpose to:
 > ${groupTitle}
 When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
 Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.user_id}> done\``

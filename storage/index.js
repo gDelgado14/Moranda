@@ -4,7 +4,9 @@
 
 const Firebase = require('firebase')
 
-function Storage (url, accountInfo) {
+function Storage () {
+  let url = 'https://project-3576296690235739912.firebaseio.com/'
+  let accountInfo = './dbaccount.json'
 
   // Initialize the app with a service account, granting admin privileges
   // https://firebase.google.com/docs/database/server/start
@@ -19,9 +21,11 @@ function Storage (url, accountInfo) {
   // added to obj immediately
   let storage = {
     teams: {
-      get: function (id) {
-        // return promise with dataSnapshot
-        return db.ref(`teams/${id}`).once('value')
+      get: function (team_id, cb) {
+
+        db.ref(`teams/${team_id}`).once('value')
+          .then(teamSnapshot => cb(null, teamSnapshot.val()))
+          .catch(err => cb(err))
       },
       save: function (team) {
         if (!team.id) {
@@ -152,7 +156,7 @@ function Storage (url, accountInfo) {
    *
    */
   storage.getId = function (msg) {
-
+    
     return storage.users.all(msg.team_id)
             .then(snapshot => returnIds(snapshot))
   }

@@ -38,29 +38,15 @@
 
 'use strict'
 
-const Botkit = require('./botkit')
+const Botkit = require('botkit')
 const config = require('./config')
-const storage = require('./storage')
-const port = config('PORT')
-const clientId = config('CLIENT_ID')
-const clientSecret = config('CLIENT_SECRET')
-const slashToken = config('SLASH_COMMAND_TOKEN') // Each application can have only one slash command token, even if they have multiple commands associated with an app
-const handleAsides = require('./asides')
+const Moranda = require('./moranda')
 
 // controller is an instance of SlackBot
 // slackBot inherits properties of CoreBot
 // ask for the most basic permissions
 // and subsequently add more scopes as needed
-let controller = Botkit.slackbot({
-  storage: storage('https://project-3576296690235739912.firebaseio.com/', './dbaccount.json')
-}).configureSlackApp({
-  clientId: clientId,
-  clientSecret: clientSecret,
-  scopes: 'commands,bot'
-})
-
-// shorthand for firebase db app
-let db = controller.storage
+let controller = Moranda(Botkit, config)
 
 function addNewScopes(src, bot) {
   let scopes = ['groups:write', 'chat:write:bot', 'groups:read', 'im:read']
@@ -333,103 +319,11 @@ function closeConversation(bot, msg) {
     })
 }
 
-// global access to express server available through controller.webserver
-// __dirname + '/public' is location of landing page
-controller.setupWebserver(port, __dirname + '/public', (err, webserver) => {
-  if (err) {
-    throw new Error(err)
-  }
 
-  // configure server for /Aside commands and all other outgoing webhooks
-  // /Aside currently the only command sending outgoing webhooks
-  // listen for POST requests at '/slack/receive'
-  // Each application can have only one slash command token, even if they have multiple commands associated with an app
-  controller.createWebhookEndpoints(webserver, slashToken)
-
-  // uses __dirname + '/public'
-  controller.createHomepageEndpoint(webserver)
-
-  // set up service for authenticating users
-  // can pass optional cb with (err, req, res)
-  controller.createOauthEndpoints(webserver)
-})
-
-controller.on('update_user', (bot, user) => {
-  // use this to notify user that his changes have been saved
-  console.log('update_user event - user')
-  console.log(user)
-})
-
-// Upon registering a team, spawn a bot
-// and then connect it to RTM
-// fired within createOauthEndpoints
-controller.on('create_bot', function(bot, config) {
-
-  if (_bots[bot.config.token]) {
-    // already online! do nothing.
-  } else {
-    bot.startRTM((err, bot, res) => {
-
-      if (!err) {
-        controller.trackBot(bot);
-        // add bot data to firebase or update it if its already there
-        db.updateDB(res)
-          .then(() => {
-            console.log('>>>>>> successfully updated firebase!')
-
-            bot.startPrivateConversation({user: config.createdBy}, function(err,convo) {
-              if (err) {
-                console.log(err);
-              } else {
-                convo.say(`Oh, hey <@${config.createdBy}>! I'm so excited to be part of your team.\n\nI\'m currently in alpha so I cannot do too much at the moment.\n\nIf you want to try out my current feature, just type \`/aside _topic_name_ @invitees\`\n\nThis command will create an Aside: a private temporary group to discuss information.\n\nOnce your conversation is over, I will help distribute the key takeways to their respective channels.\n\nThat's it for now. Have a wonderful day.\n\nHere's another cute cat gif just for you.\n\nhttp://www.cutecatgifs.com/wp-content/uploads/2015/04/cute-aww.gif`)
-              }
-            });
-
-            return
-          })
-          .catch(e => {
-            console.log('errroorororrrr');
-            throw new Error(e)
-          })
-      }
-
-    });
-  }
-
-})
-
-
-// register slash command handler for /Aside if other slash commands are created, this callback
-// must then filter to see which specific command was executed only the slash commands configured
-// to POST to our URL will trigger this handler
-controller.on('slash_command', handleAsides)
-
-// This handler gets triggered in any channel in which @moranda is in, regardless of whether it's an aside or not
-// TODO: @gg has to discern whether a given channel is an aside or not
-// Once ''@gg done' is mentioned within the same channel, start summarization conversation
-controller.hears(['done'], 'mention,direct_mention', (bot, message) => {
-
-  console.log('.hears event')
-
-  // asideData queries return:
-  // - true if Aside still open
-  // - false if Aside has been archived
-  // - undefined if Aside doesn't exist (message.channel is not referencing an aside)
-  db.isOpenAside(message)
-    .then(open => {
-      if (open) {
-        console.log('done event listener - aside is open');
-        closeConversation(bot, message)
-      }
-    })
-    .catch(e => {
-      console.log('isOpenAside - err: ', e)
-    })
-})
 
 
 // connect all bots to Slack
-db.teams.all()
+controller.storage.teams.all()
   .then(snapshot => {
     snapshot.forEach(childSnapshot => {
       if (childSnapshot.val().bot) {

@@ -12,8 +12,4 @@ const config = {
   CLIENT_SECRET: process.env.CLIENT_SECRET
 }
 
-module.exports = (key) => {
-  if (!key) return config
-
-  return config[key]
-}
+module.exports = config
