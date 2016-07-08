@@ -5,15 +5,18 @@ const setUpWebServerAndEndpoints = require('./moranda-server-setup')
 const storage = require('../storage')
 
 // extend Slack_Bot functionalities
-function Moranda(Botkit, config) {
+function Moranda(Botkit, config, dirname) {
     let morandaBotkit = Botkit.slackbot({
-            storage: storage()
+            storage: storage,
+            webserver: {
+                static_dir: dirname
+            }
         }).configureSlackApp({
             clientId: config.CLIENT_ID,
             clientSecret: config.CLIENT_SECRET,
-            scopes: 'commands,bot'
+            scopes: 'commands,bot' // ask for the most basic permissions and subsequently add more scopes as needed
         })
-    
+
     setUpCustomEventHandlers(morandaBotkit)
     setUpWebServerAndEndpoints(morandaBotkit, config)
 
@@ -25,6 +28,14 @@ function Moranda(Botkit, config) {
      */
     morandaBotkit.trackBot = function trackBot(botInstance) {
         morandaBotkit.bots[botInstance.config.token] = botInstance
+    }
+
+    morandaBotkit.addNewScopes = function addNewScopes(slackMessageObj, bot) {
+        let scopes = ['groups:write', 'chat:write:bot', 'groups:read', 'im:read']
+        let url = morandaBotkit.getAuthorizeURL(null, scopes) // returns the url to acquire the scopes from oauth flow
+        let msg = `You don\'t have permission to do asides.\nplease authorize with the following link:\n${url}\nTry your command once more after you have authorized.`
+
+        bot.replyPrivate(slackMessageObj, msg)
     }
 
     

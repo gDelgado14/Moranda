@@ -55,7 +55,7 @@ function Storage () {
           return Promise.reject('object must contain team id and user id properties')
         }
         // return promise with dataSnapshot
-        return db.ref(`users/${team}/${user}`).once('value')
+        return db.ref(`users/${team}/${user}`).once('value').then(userSnapshot => userSnapshot.val())
       },
       save: function (user) {
         if (!user.id) {
@@ -68,8 +68,8 @@ function Storage () {
           return db.ref(`users/${user.team_id}/${user.id}`).update(user)
         }
       },
-      all: function(id) {
-        return db.ref(`users/${id}`).once('value')
+      all: function(message) {
+        return db.ref(`users/${message.team_id}`).once('value').then(usersSnapshot => usersSnapshot.val())
       }
     },
     channels: {
@@ -82,15 +82,13 @@ function Storage () {
         if (!response.team || !response.channel) {
           return Promise.reject('must specify teamid and userid')
         }
-        return db.ref(`asides/${response.team}/${response.channel}`).once('value')
+        return db.ref(`asides/${response.team}/${response.channel}`).once('value').then(asideSnapshot => asideRef.val())
       },
       save: function (asideData, teamId, asideId) {
         return db.ref(`asides/${teamId}/${asideId}`).update(asideData)
-      }
-    },
-    images: {
-      get: function (teamId, userId) {
-        return db.ref(`images/${teamId}/${userId}`).once('value')
+      },
+      all: function (teamId) {
+        return db.ref(`asides/${teamId}`).once('value').then(asidesSnapshot => asidesSnapshot.val())
       }
     }
   }
@@ -231,4 +229,4 @@ function Storage () {
   return storage
 }
 
-module.exports = Storage
+module.exports = Storage()
