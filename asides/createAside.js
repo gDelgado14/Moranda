@@ -62,18 +62,21 @@ function openAside (bot, msg) {
       // TODO: Ensure consistency in data (Issue #18)
       // see if the person who sent the aside request has the proper scopes
       if (!userObj[msg.user_id].scopes) {
+        // TODO: throw within this statement, catch, and handle accordingly
         bot.botkit.addNewScopes(msg, bot)
         return
       }
       
       asideTitle = msg.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
       if (!asideTitle) {
+        // TODO: throw within this statement, catch, and handle accordingly
         bot.replyPrivate(msg, '/Aside requires a channel topic!')
         return
       }
 
       inviteeUsernames = msg.text.match(/\s@\w+/gi)
       if (!inviteeUsernames) {
+        // TODO: throw within this statement, catch, and handle accordingly
         bot.replyPrivate(msg, '/Aside requires @invitees')
         return
       } 
@@ -96,6 +99,10 @@ function openAside (bot, msg) {
           aside.open = true
           aside.purpose = asideTitle
           aside.created = response.group.created
+          // add token of user who created aside
+          // for the sake of hijaking the token
+          // to have all aside members be able to use asides
+          aside.token = token
 
       saveNewAside(aside, msg.team_id, response.group.id)
 

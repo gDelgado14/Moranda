@@ -26,13 +26,14 @@ function Moranda(Botkit, config, dirname) {
     /** Keep track of instantiated bots - don't connect to RTM more than once per bot
      * @param  {Object} botInstance - instance of a bot to track 
      */
-    morandaBotkit.trackBot = function trackBot(botInstance) {
+    morandaBotkit.trackBot = function trackBot (botInstance) {
         morandaBotkit.bots[botInstance.config.token] = botInstance
     }
 
-    morandaBotkit.addNewScopes = function addNewScopes(slackMessageObj, bot) {
-        let scopes = ['groups:write', 'chat:write:bot', 'groups:read', 'im:read']
-        let url = morandaBotkit.getAuthorizeURL(null, scopes) // returns the url to acquire the scopes from oauth flow
+    // TODO: create module 
+    morandaBotkit.addNewScopes = function addNewScopes (slackMessageObj, bot) {
+        let scopes = ['groups:write', 'groups:read', 'chat:write:bot', 'im:read']
+        let url = bot.botkit.getAuthorizeURL(null, scopes) // returns the url to acquire the scopes from oauth flow
         let msg = `You don\'t have permission to do asides.\nplease authorize with the following link:\n${url}\nTry your command once more after you have authorized.`
 
         bot.replyPrivate(slackMessageObj, msg)

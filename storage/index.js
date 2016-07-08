@@ -82,7 +82,7 @@ function Storage () {
         if (!response.team || !response.channel) {
           return Promise.reject('must specify teamid and userid')
         }
-        return db.ref(`asides/${response.team}/${response.channel}`).once('value').then(asideSnapshot => asideRef.val())
+        return db.ref(`asides/${response.team}/${response.channel}`).once('value').then(asideSnapshot => asideSnapshot.val())
       },
       save: function (asideData, teamId, asideId) {
         return db.ref(`asides/${teamId}/${asideId}`).update(asideData)
