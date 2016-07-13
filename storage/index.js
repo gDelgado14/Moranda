@@ -60,16 +60,22 @@ function Storage () {
       save: function (user) {
         if (!user.id) {
           return Promise.reject('No ID specified')
-        } else {
-          // create user reference ordered by team_id
-          // create username reference ordered by team_id
-          console.log('>>>>>> users.save - user')
-          console.log(user)
-          return db.ref(`users/${user.team_id}/${user.id}`).update(user)
         }
+        // create user reference ordered by team_id
+        // create username reference ordered by team_id
+        return db.ref(`users/${user.team_id}/${user.id}`).update(user)
+        
       },
-      all: function(message) {
-        return db.ref(`users/${message.team_id}`).once('value').then(usersSnapshot => usersSnapshot.val())
+      all: function(identity) {
+        let teamId = identity.team_id ? identity.team_id : identity
+
+        return db.ref(`users/${teamId}`).once('value').then(usersSnapshot => {
+          if (usersSnapshot.exists()) {
+            return usersSnapshot.val()
+          }
+
+          return new Error(`Reference to users node for team ${teamId} does not exist`)
+        })
       }
     },
     channels: {
@@ -91,60 +97,6 @@ function Storage () {
         return db.ref(`asides/${teamId}`).once('value').then(asidesSnapshot => asidesSnapshot.val())
       }
     }
-  }
-
-  /**
-   * Utility function to receive JSON payload data from startRTM
-   * and update firebase
-   * @param  obj - teamData obj literal containing team data - see res.json for payload example
-   * @return Promise          promise that resolves once all operations completed
-   */
-  storage.updateDB = function (teamData) {
-    // we only care about non-deleted users
-    // get data for active team members
-    // set 'scopes' to false so that we know
-    // they haven't authenticated yet
-    // get their name so that we may cross reference their name with their uid
-
-    let activeUsers = {}
-    teamData.users.forEach(user => {
-      if (!user.deleted) {
-        activeUsers[user.id] = {
-          scopes: false,
-          user: user.name,
-          img: user.profile.image_24
-        }
-      }
-    })
-
-    return (
-    db.ref(`users/${teamData.team.id}`).once('value')
-      .then(snapshot => {
-
-        console.log('>>>>> DataSnapshot')
-        console.log(snapshot.val())
-
-        if (snapshot.exists()) {
-          snapshot.forEach(childSnapshot => {
-
-            console.log('>>>>> ChildSnapshot')
-            console.log(childSnapshot.key)
-            console.log(childSnapshot.val())
-
-            // replace activeusers node with existing value in firebase
-            // but append img property to existing firebase value
-            let img = activeUsers[childSnapshot.key].img
-            activeUsers[childSnapshot.key] = childSnapshot.val()
-            activeUsers[childSnapshot.key].img = img
-          })
-        }
-
-        console.log('>>>>> activeUsers')
-        console.log(activeUsers)
-
-        db.ref(`users/${teamData.team.id}`).update(activeUsers)
-      })
-    )
   }
 
   /**

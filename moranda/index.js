@@ -3,6 +3,7 @@
 const setUpCustomEventHandlers = require('./moranda-events')
 const setUpWebServerAndEndpoints = require('./moranda-server-setup')
 const storage = require('../storage')
+const initialScopes = require('../utils').scopes
 
 // extend Slack_Bot functionalities
 function Moranda(Botkit, config, dirname) {
@@ -14,7 +15,8 @@ function Moranda(Botkit, config, dirname) {
         }).configureSlackApp({
             clientId: config.CLIENT_ID,
             clientSecret: config.CLIENT_SECRET,
-            scopes: 'commands,bot' // ask for the most basic permissions and subsequently add more scopes as needed
+            redirectUri: 'http://localhost:3000/oauth',
+            scopes: initialScopes // ask for the most basic permissions and subsequently add more scopes as needed
         })
 
     setUpCustomEventHandlers(morandaBotkit)
@@ -30,16 +32,6 @@ function Moranda(Botkit, config, dirname) {
         morandaBotkit.bots[botInstance.config.token] = botInstance
     }
 
-    // TODO: create module 
-    morandaBotkit.addNewScopes = function addNewScopes (slackMessageObj, bot) {
-        let scopes = ['groups:write', 'groups:read', 'chat:write:bot', 'im:read']
-        let url = bot.botkit.getAuthorizeURL(null, scopes) // returns the url to acquire the scopes from oauth flow
-        let msg = `You don\'t have permission to do asides.\nplease authorize with the following link:\n${url}\nTry your command once more after you have authorized.`
-
-        bot.replyPrivate(slackMessageObj, msg)
-    }
-
-    
     return morandaBotkit
 }
 

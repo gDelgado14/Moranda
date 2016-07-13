@@ -1,42 +1,27 @@
 'use strict'
 
-function Utils () {
+const handleCreateBot = require('./handleCreateBot')
+const initialScopes = require('./scopes')
 
-    let utils = {}
+const Utils = {
+    handleCreateBot: handleCreateBot,
+    scopes: initialScopes
+}
 
-    /**
-     * find if is part of array
-     * 
-     * @param {String} id
-     * @param {Array} members
-     * @returns {bool} true if is member of array, false otherwise
-     */
-    utils.findIfIsMember = function findIfMemberOf (id, members) {
-        let m
-        let found = false
-        for (m = 0; m < members.length; m++) {
-            if (id === channelList[c].members[u]) {
-                found = true
-                break
-            } 
-        }
+/**
+ * Adds scopes to user tokens
+ * 
+ * @param {Object} slackMessageObj
+ * @param {Object} bot
+ */
+Utils.addNewScopes = function addNewScopes (slackMessageObj, bot) {
+    let scopes = ['groups:write', 'groups:read', 'chat:write:bot', 'im:read']
+    let url = bot.botkit.getAuthorizeURL(null, scopes) // returns the url to acquire the scopes from oauth flow
+    let msg = `You don\'t have permission to do asides.\nplease authorize with the following link:\n${url}\nTry your command once more after you have authorized.`
 
-        // if by the end of iterating the entire list of users we havent found
-        // our bot, then the bot is not within the channel and we return the 
-        // channel id from which the bot is missing 
-        if (!found) {
-          return channelList[c].id
-        }   
-    }
-
-    return utils
-
+    bot.replyPrivate(slackMessageObj, msg)
 }
 
 
 
-        
-        
-        
-
-module.exports = Utils()
+module.exports = Utils

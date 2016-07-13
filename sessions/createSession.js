@@ -2,6 +2,7 @@
 
 const db = require('../storage')
 const promisify = require('promisify-node')
+const addNewScopes = require('../utils').addNewScopes
 
 /**
  * Get the unique Ids of each user
@@ -28,7 +29,7 @@ function getInviteeIds (usernames, userObject) {
 }
 
 /**
- * check if user has permission to user asides
+ * check if user has permission to create Sessions
  * 
  * @param {any} msg
  * @return {Promise} resolves to object containing a team's users
@@ -38,7 +39,7 @@ function getUsers (msg) {
 }
 
 /**
- * Save newlycreated aside
+ * Save newly created Session
  * 
  * @param {Object} aside -   new Aside object to be saved to firebase
  * @param {String} team_id - team id for corresponding aside
@@ -63,7 +64,7 @@ function openAside (bot, msg) {
       // see if the person who sent the aside request has the proper scopes
       if (!userObj[msg.user_id].scopes) {
         // TODO: throw within this statement, catch, and handle accordingly
-        bot.botkit.addNewScopes(msg, bot)
+        addNewScopes(msg, bot)
         return
       }
       
@@ -116,7 +117,7 @@ function openAside (bot, msg) {
     .then(responseArray => {
       // TODO: replace 'txt' w attachment. Formatting all wonky
       let txt = `Welcome @${msg.user_name + ', ' + msg.text.match(/@(\w+)/gi).join(', ')}!
-<@${msg.user_id}> created this Aside and set the purpose to:
+<@${msg.user_id}> created this Session and set the purpose to:
 > ${asideTitle}
 When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
 Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.user_id}> done\``
@@ -145,7 +146,7 @@ Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.
     .catch(e => {
       if (e === 'name_taken') {
         // name taken event fired (Issue #3)
-        bot.replyPrivate(msg, 'This Aside topic is already taken! Try another topic instead.')
+        bot.replyPrivate(msg, 'This Session topic is already taken! Try another topic instead.')
         return
       }
       throw e

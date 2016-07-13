@@ -55,7 +55,7 @@ controller.storage.teams.all()
       if (childSnapshot.val().bot) {
         controller.spawn(childSnapshot.val()).startRTM((err, bot) => {
           if (err) {
-            console.log('Error connecting bot to Slack:',err)
+            throw new Error('Error connecting bot to Slack: ', err)
           } else {
             controller.trackBot(bot)
           }
