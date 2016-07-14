@@ -1,37 +1,74 @@
 'use strict'
 
-// import {} from 'utils'
-
 const Firebase = require('firebase')
+const scopes = require('../utils')
 
 function Storage () {
-  let url = 'https://project-3576296690235739912.firebaseio.com/'
-  let accountInfo = './dbaccount.json'
-
   // Initialize the app with a service account, granting admin privileges
   // https://firebase.google.com/docs/database/server/start
   Firebase.initializeApp({
-    databaseURL: url,
-    serviceAccount: accountInfo
+    databaseURL: 'https://project-3576296690235739912.firebaseio.com/',
+    serviceAccount: './dbaccount.json'
   })
 
   let db = Firebase.database()
+
+  // workaround for SlackBot.js calling users.get without a reference to a team id (SlackBot.js:481)
+  let lastUpdatedTeamId = null
+
+  /**
+   * Update a single user on Firebase 
+   * 
+   * @param {Object} userObj - Object literal containing user data
+   * @returns {Promise} 
+   */
+  function saveSingleUser (userObj, cb) {
+    // users.save can save data for one user or do a bulk update for all users given a teamid
+    if (!userObj.id || !userObj.team_id) {
+      return Promise.reject('No ID specified')
+    }
+    // create user reference ordered by team_id
+    // create username reference ordered by team_id
+    return db.ref(`users/${userObj.team_id}/${userObj.id}`).update(userObj).then(() => {
+      // if we passed a callback function as second param (meaning this was called from SlackBot.js:493)
+      if (cb)
+        cb(null, userObj.id)
+    })
+  }
+
+  /**
+   * 
+   * 
+   * @param {String} teamId - id of team that the users belong to
+   * @param {Object} usersObjects - object containing all team members
+   * @returns {Promise}
+   */
+  function saveGroup (teamId, usersObjects) {
+    return db.ref(`users/${teamId}`).update(usersObjects)
+  }
 
   // consider switching to const if all methods
   // added to obj immediately
   let storage = {
     teams: {
-      get: function (team_id, cb) {
+      get: function (teamId, cb) {
 
-        db.ref(`teams/${team_id}`).once('value')
+        db.ref(`teams/${teamId}`).once('value')
           .then(teamSnapshot => cb(null, teamSnapshot.val()))
           .catch(err => cb(err))
       },
-      save: function (team) {
+      save: function (team, cb) {
         if (!team.id) {
           return Promise.reject('No ID specified')
         } else {
-          return db.ref('teams/' + team.id).update(team)
+          return db.ref('teams/' + team.id).update(team).then(() => {
+            if (cb) {
+              lastUpdatedTeamId = team.id
+              cb(null, team.id)
+            }
+          }).catch(e => {
+            throw new Error(e)
+          })
         }
       },
       all: function () {
@@ -42,6 +79,8 @@ function Storage () {
       get: function (identity) {
         let team = null
         let user = null
+        let hasCallback = false
+
         if (identity.team_id && identity.user_id) {
           team = identity.team_id
           user = identity.user_id
@@ -51,22 +90,55 @@ function Storage () {
         } else if (identity.team_id && identity.id) {
           team = identity.team_id
           user = identity.id
+        } else if (arguments.length === 2 && typeof arguments[1] === 'function') {
+          // Probably being called from SlackBot.js in oauth flow (SlackBot.js:481)
+          hasCallback = true
+          team = lastUpdatedTeamId
+          user = identity
         } else {
           return Promise.reject('object must contain team id and user id properties')
         }
         // return promise with dataSnapshot
-        return db.ref(`users/${team}/${user}`).once('value').then(userSnapshot => userSnapshot.val())
+        return db.ref(`users/${team}/${user}`).once('value').then(userSnapshot => {
+          if (hasCallback && userSnapshot.exists()) {
+            // if we are updating an existing user, return that user
+            let userObj = userSnapshot.val()
+            userObj.id = userSnapshot.key
+            userObj.team_id = team
+            userObj.scopes = scopes.upgradedScopes.split(',')
+            return arguments[1](null, userObj)
+          } else if (hasCallback && !userSnapshot.exists()) {
+            // if the user is new (and has no reference in firebase) then there is nothing to return
+            return arguments[1](null, null)
+          }
+          return userSnapshot.val()
+        })
+        .catch(e => {
+          throw new Error(e)
+        })
       },
-      save: function (user) {
-        if (!user.id) {
-          return Promise.reject('No ID specified')
+      /**
+       * 
+       * @param  {Object}   user  contains [.team_id, .user_id, .text]
+       * @return {Promise}           promise with object containing array of user ids and user access token
+       *
+       */
+      save: function (data) {
+        let cb
+        // check if we passed in an object literal as second param (containing all users of a particular slack team)
+        if (arguments.length === 2 && arguments[1] !== null && typeof arguments[1] === 'object') {
+          return saveGroup(arguments[0], arguments[1])
+        } 
+        // check if we passed a callback function as second param (meaning this was called from SlackBot.js:493)
+        else if (arguments.length === 2 && typeof arguments[1] === 'function') {
+          cb = arguments[1]
         }
-        // create user reference ordered by team_id
-        // create username reference ordered by team_id
-        return db.ref(`users/${user.team_id}/${user.id}`).update(user)
-        
+
+        return saveSingleUser(data, cb)
       },
       all: function(identity) {
+        // identity most likely a Botkit msg object containing team_id property
+        // otherwise the team_id is being passed directly (team_id === identity)
         let teamId = identity.team_id ? identity.team_id : identity
 
         return db.ref(`users/${teamId}`).once('value').then(usersSnapshot => {

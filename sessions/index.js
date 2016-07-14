@@ -1,9 +1,9 @@
 'use strict'
 
-const createAside = require('./createAside')
-const initFinalizeAside = require('./initFinalizeAside')
+const createSession = require('./createSession')
+const initFinalizeSession = require('./initFinalizeSession')
 
 module.exports = {
-  createAside: createAside,
-  initFinalizeAside: initFinalizeAside
+  createSession: createSession,
+  initFinalizeSession: initFinalizeSession
 }

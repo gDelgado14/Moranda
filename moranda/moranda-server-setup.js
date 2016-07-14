@@ -28,10 +28,7 @@ function setUpServerAndEndPoints (morandaBotkit, config) {
 
         // set up service for authenticating users
         // can pass optional cb with (err, req, res)
-        morandaBotkit.createOauthEndpoints(webserver, (e, req, res) => {
-            if (e)
-                throw new Error(e)
-        })
+        morandaBotkit.createOauthEndpoints(webserver)
 
         morandaBotkit.createHomepageEndpoint(webserver)
 

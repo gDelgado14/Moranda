@@ -2,7 +2,30 @@
 
 const db = require('../storage')
 const promisify = require('promisify-node')
-const addNewScopes = require('../utils').addNewScopes
+const utils = require('../utils')
+
+const initialScopes = utils.scopes.split(',')
+const addNewScopes = utils.addNewScopes
+
+/**
+ * Check to see if the current scopes of a given user are the initial scopes
+ * 
+ * Note: this function is tightly coupled - dependancy on 'initialscopes'
+ * 
+ * @param {Array} currentScopes
+ * @returns
+ */
+function arraysEqual(currentScopes) {
+    let i
+    if(initialScopes.length !== currentScopes.length)
+        return false
+    for(i = 0; i < initialScopes.length; i++) {
+        if(initialScopes[i] !== currentScopes[i])
+            return false
+    }
+
+    return true
+}
 
 /**
  * Get the unique Ids of each user
@@ -50,7 +73,7 @@ function saveNewAside (aside, team_id, groupId) {
   return db.asides.save(aside, team_id, groupId)
 }
 
-function openAside (bot, msg) {
+function openSession (bot, msg) {
   let asideTitle
   let inviteeUsernames
   let inviteeIds
@@ -60,12 +83,9 @@ function openAside (bot, msg) {
   //check if user even has permission to do asides
   getUsers(msg)
     .then(userObj => {
-      // TODO: Ensure consistency in data (Issue #18)
-      // see if the person who sent the aside request has the proper scopes
-      if (!userObj[msg.user_id].scopes) {
-        // TODO: throw within this statement, catch, and handle accordingly
-        addNewScopes(msg, bot)
-        return
+      let userCurrentScopes = userObj[msg.user_id].scopes
+      if (arraysEqual(userCurrentScopes)) {
+        throw new Error('scopes_missing_error')
       }
       
       asideTitle = msg.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
@@ -96,15 +116,16 @@ function openAside (bot, msg) {
       })
     })
     .then(response => {
-      let aside = {}
-          aside.open = true
-          aside.purpose = asideTitle
-          aside.created = response.group.created
-          // add token of user who created aside
-          // for the sake of hijaking the token
-          // to have all aside members be able to use asides
-          aside.token = token
-
+      // add token of user who created aside
+      // for the sake of hijaking the token
+      // to have all aside members be able to use asides
+      let aside = {
+        open: true,
+        purpose: asideTitle,
+        created: response.group.created,
+        token: token
+      }
+      
       saveNewAside(aside, msg.team_id, response.group.id)
 
       // wait until all invitees have been added to the Aside
@@ -144,13 +165,16 @@ Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.
       ])
     })
     .catch(e => {
-      if (e === 'name_taken') {
+      if (e.message === 'name_taken') {
         // name taken event fired (Issue #3)
         bot.replyPrivate(msg, 'This Session topic is already taken! Try another topic instead.')
+        return
+      } else if (e.message === 'scopes_missing_error') {
+        addNewScopes(bot, msg)
         return
       }
       throw e
     })
 }
 
-module.exports = openAside
+module.exports = openSession

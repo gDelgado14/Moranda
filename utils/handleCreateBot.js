@@ -1,12 +1,11 @@
 'use strict'
 
 const db = require('../storage')
-const initialScopes = require('./scopes').split(',')
+const initialScopes = require('./scopes').initialScopes.split(',')
 
 
 function updateUsers (teamId, users) {
-    console.log('test')
-    return db.users.save(`users/${teamId}`).update(users)
+    return db.users.save(teamId, users)
 }
 
 /**
@@ -110,19 +109,17 @@ function handleCreateBot (bot, config) {
 
         morandaBotkit.trackBot(bot)
 
-        // add bot data to firebase or update it if its already there
+        // add bot data to firebase
         updatedb(res)
-        .then(() => {
-            console.log('>>>>>> successfully updated firebase!')
-
+        .then(() => {            
             bot.startPrivateConversation({user: config.createdBy}, (err,convo) => {
                 if (err)
                     throw new Error(err)
                 
-                convo.say(`Oh, hey <@${config.createdBy}>! I'm so excited to be part of your team.\n\nI\'m currently in alpha so I cannot do too much at the moment.\n\nIf you want to try out my current feature, just type \`/aside _topic_name_ @invitees\`\n\nThis command will create an Aside: a private temporary group to discuss information.\n\nOnce your conversation is over, I will help distribute the key takeways to their respective channels.\n\nThat's it for now. Have a wonderful day.\n\nHere's another cute cat gif just for you.\n\nhttp://www.cutecatgifs.com/wp-content/uploads/2015/04/cute-aww.gif`)
+                convo.say(`Oh, hey <@${config.createdBy}>! I'm so excited to be part of your team.\n\nI\'m currently in alpha so I cannot do too much at the moment.\n\nIf you want to try out my current feature, just type \`/session _topic_name_ @invitees\`\n\nThis command will create a Session: a private temporary group to discuss anything.\n\nOnce your conversation is over, I will help distribute the key takeways to their respective channels.\n\nThat's it for now. Have a wonderful day.\n\nHere's a cute cat gif just for you.\n\nhttp://www.cutecatgifs.com/wp-content/uploads/2015/04/cute-aww.gif`)
             
+                convo.next()
             })
-
             return
         })
         .catch(e => {
