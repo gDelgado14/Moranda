@@ -1,31 +1,12 @@
 'use strict'
 
+const _ = require('lodash')
 const db = require('../storage')
 const promisify = require('promisify-node')
 const utils = require('../utils')
 
-const initialScopes = utils.scopes.split(',')
+const initialScopes = utils.scopes.split(',').sort()
 const addNewScopes = utils.addNewScopes
-
-/**
- * Check to see if the current scopes of a given user are the initial scopes
- * 
- * Note: this function is tightly coupled - dependancy on 'initialscopes'
- * 
- * @param {Array} currentScopes
- * @returns
- */
-function arraysEqual(currentScopes) {
-    let i
-    if(initialScopes.length !== currentScopes.length)
-        return false
-    for(i = 0; i < initialScopes.length; i++) {
-        if(initialScopes[i] !== currentScopes[i])
-            return false
-    }
-
-    return true
-}
 
 /**
  * Get the unique Ids of each user
@@ -83,8 +64,8 @@ function openSession (bot, msg) {
   //check if user even has permission to do asides
   getUsers(msg)
     .then(userObj => {
-      let userCurrentScopes = userObj[msg.user_id].scopes
-      if (arraysEqual(userCurrentScopes)) {
+      let userCurrentScopes = userObj[msg.user_id].scopes.sort()
+      if (_.isEqual(userCurrentScopes, initialScopes)) {
         throw new Error('scopes_missing_error')
       }
       

@@ -34,63 +34,33 @@ function updatedb (teamData) {
     // set 'scopes' to false so that we know
     // they haven't authenticated yet
     // get their name so that we may cross reference their name with their uid
-    let activeUsers = {}
-    teamData.users.forEach(user => {
-      if (!user.deleted) {
-        activeUsers[user.id] = {
-          scopes: initialScopes,
-          user: user.name,
-          img: user.profile.image_24
-        }
-      }
-    })
+    let teamId = teamData.team.id
+    return getUsers(teamData.team.id)
+        .then(usersObject => {
+            // this object contains a reference to the user who authorized the bot
+            let authUser = usersObject
+            let authUserId = Object.keys(authUser)[0]
+            
+            // build database of all team members including authUser
+            let activeUsers = {}
+            teamData.users.forEach(user => {
+                if (authUserId === user.id) {
+                    activeUsers[user.id] = authUser[authUserId]
+                } else if (!user.deleted) {
+                    activeUsers[user.id] = {
+                        id: user.id,
+                        team_id: teamId,
+                        scopes: initialScopes,
+                        user: user.name,
+                        img: user.profile.image_24
+                    }
+                }
+            })
 
-    return updateUsers(teamData.team.id, activeUsers)
+            return updateUsers(teamData.team.id, activeUsers)
+        })  
 }
     
-/*
-    let activeUsers = {}
-    teamData.users.forEach(user => {
-      if (!user.deleted) {
-        activeUsers[user.id] = {
-          scopes: false,
-          user: user.name,
-          img: user.profile.image_24
-        }
-      }
-    })
-
-    return (
-    db.ref(`users/${teamData.team.id}`).once('value')
-      .then(snapshot => {
-
-        console.log('>>>>> DataSnapshot')
-        console.log(snapshot.val())
-
-        if (snapshot.exists()) {
-          snapshot.forEach(childSnapshot => {
-
-            console.log('>>>>> ChildSnapshot')
-            console.log(childSnapshot.key)
-            console.log(childSnapshot.val())
-
-            // replace activeusers node with existing value in firebase
-            // but append img property to existing firebase value
-            let img = activeUsers[childSnapshot.key].img
-            activeUsers[childSnapshot.key] = childSnapshot.val()
-            activeUsers[childSnapshot.key].img = img
-          })
-        }
-
-        console.log('>>>>> activeUsers')
-        console.log(activeUsers)
-
-        db.ref(`users/${teamData.team.id}`).update(activeUsers)
-      })
-    )
-  }
-
-*/
 
 function handleCreateBot (bot, config) {
     let morandaBotkit = bot.botkit

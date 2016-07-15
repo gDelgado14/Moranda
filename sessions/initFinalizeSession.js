@@ -15,8 +15,42 @@ function doSomethingCrazy () {
   // noop
 }
 
+/**
+ * Create Slack compliant attachment that will be stringified by Botkit
+ * 
+ * @param {String} purpose    - Session purpose set by user
+ * @param {String} summary    - Session summary / key takeaways set by user
+ * @returns {Array} will be stringified by Botkit
+ */
+function createSummary (purpose, summary) {
+  // s = unstringified summary attachment
+  return [{
+            fallback: 'An Aside summary.',
+            color: "#36a64f",
+            fields: [
+              {
+                title: "Purpose",
+                value: purpose
+              },
+              {
+                title: "Summary",
+                value: summary
+              }
+            ]
+          }]
+}
+
+/**
+ * Fetch Session purpose from database
+ *
+ * @param  {Object} res      Botkit response Object containing conversation response data
+ * @returns {Promise} containing Session purpose
+ */
 function getAsidePurpose (res) {
-  return db.asides.get(res).then(asideObj => asideObj.purpose)
+  return db.asides.get(res).then(asideObj => {
+    console.log('>>>> purpose', asideObj.purpose)
+    return asideObj.purpose
+  })
 }
 
 /**
@@ -63,47 +97,35 @@ function findUninvitedChannels (id, requestedChannels, channelList) {
 }
 
 function dmSummary(response, convo, bot) {
-  bot.api.im.list({
+  let webAPI = promisify(bot.api)
+
+  return webAPI.im.list({
     token: bot.config.bot.token
-  }, (err, imList) => {
-      if (err) {
-        throw new Error(err)
+  })
+  .then(imList => {
+
+    getAsidePurpose(response)
+    .then(asidePurpose => {
+      let i
+      let asideSummary = createSummary(asidePurpose, convo.extractResponse('summary'))
+      
+      for (i = 0; i < imList.ims.length; i++) {
+        if (imList.ims[i].user === response.user) {
+          bot.api.chat.postMessage({
+            token: bot.config.bot.token,
+            channel: imList.ims[i].id,
+            text: 'Here is your Aside summary',
+            attachments: asideSummary
+          })
+          break
+        }
       }
 
-      db.asides.get(response)
-        .then(snapshot => {
-          let asidePurpose = snapshot.val().purpose
+      return
 
-          let asideSummary = [{
-              fallback: 'An Aside summary.',
-              color: "#36a64f",
-              fields: [
-                {
-                  title: "Purpose",
-                  value: asidePurpose
-                },
-                {
-                  title: "Summary",
-                  value: convo.extractResponse('summary')
-                }
-              ]
-            }]
-
-          let i = 0
-          for (i; i < imList.ims.length; i++) {
-            if (imList.ims[i].user === response.user) {
-              bot.api.chat.postMessage({
-                token: bot.config.bot.token,
-                channel: imList.ims[i].id,
-                text: 'Here is your Aside summary',
-                attachments: asideSummary
-              })
-              break
-            }
-          }
-
-        })
+    })
   })
+  .catch(err => bot.say(err))
 }
 
 
@@ -121,25 +143,34 @@ function dmSummary(response, convo, bot) {
  * @param {Array} notMember   - Array of channel id's that Moranda is not a member of 
  */
 function askForInvite (bot, convo, notMember) {
-  let channels = notMember.map(chan => `<#${chan}> `)
 
   return new Promise((resolve, reject) => {
+    let channels = notMember.map(chan => ` <#${chan}>`).toString().trim()
+
     convo.ask(
-    `Woah! It seems like I\'m not in ${channels}\nAll you gotta do is invite me: \`/invite <@${bot.config.bot.user_id}> #ChannelName\`.\nOr just say \`No\``,
+    `Woah! It seems like I\'m not in ${channels}\nAll you gotta do is invite me: \`/invite <@${bot.config.bot.user_id}> #ChannelName\`. Once you've added me, say 'Ok'.\nOr just say \`No\``,
     [{
         pattern: bot.utterances.no,
         callback: (response, convo) => {
-          convo.say(`Ok. I won't share the summary with <#${channel}>`)
-          // convo.next()
-          return []
+          convo.say(`Ok. I won't share the summary with ${channels}`)
+          convo.next()
+          resolve([])
+        }
+      },
+      {
+        pattern: bot.utterances.yes,
+        callback: (response, convo) => {
+          convo.say(`great!`)
+          convo.next()
+          reject('initialize_sharing_again')
         }
       },
       {
         default: true,
         callback: (response, convo) => {
           convo.say('woo default response')
-          // convo.next()
-          return []
+          convo.next()
+          resolve()
         }
       }] // end array of decisions
     ) // end ask
@@ -178,12 +209,10 @@ function shareSummary (bot, res, convo) {
     let channelResponse = fulfilledPromise[0]
     userObj = fulfilledPromise[1]
     asidePurpose = fulfilledPromise[2]
-    
-    console.log('botId: ', botId)
 
     // check if Moranda is in the mentioned channels
     let notMemberOf = findUninvitedChannels(botId, channels, channelResponse.channels)
-
+    
     // automatically add moranda to teams where he wasn't a member before
     if (notMemberOf.length > 0) {
       let alreadyMemberOf = channels.filter(chan => notMemberOf.indexOf(chan) === -1)
@@ -191,7 +220,8 @@ function shareSummary (bot, res, convo) {
       // return the final array of channels the user wants to share the summary with
       return Promise.all([
         askForInvite(bot, convo, notMemberOf),
-        alreadyMemberOf
+        alreadyMemberOf,
+        channels
       ])
       
     }
@@ -199,7 +229,27 @@ function shareSummary (bot, res, convo) {
     return channels
 
   }).then(shareChannels => {
-    // shareChannels is an array of all the channels to share a summary with
+    // shareChannels is either:
+    //  - an array of all the channels to share a summary with
+    //  - two arrays containing:
+    //    - an array of the channels Moranda was just invited to
+    //    - an array of the channels Moranda was already a member of
+
+    // the user was not a member of one or more requested channels
+    // this does not mean that shareChannels[1] (alreadyMemberOf) contains any channels
+    if (shareChannels.length === 3) {
+      shareChannels = shareChannels[0].concat(shareChannels[1])
+
+      // if there are no channels to share to ...
+      if (shareChannels.length === 0) {
+        console.log('>>>> inside 2nd if')
+        convo.say(`Instead I'll DM <@${userObj.id}> the summary. Have a wonderful rest of your day!`)
+        convo.next()
+        return dmSummary(res, convo, bot)
+      }
+    }
+
+    /*
     let asideSummary = [{
         fallback: 'An Aside summary.',
         color: "#36a64f",
@@ -227,7 +277,7 @@ function shareSummary (bot, res, convo) {
         attachments: asideSummary,
         as_user: true })
         )
-      )
+      )*/
   })
   .then(postMessageResponseArray => {
     // TODO: set asides as closed in db
@@ -237,7 +287,7 @@ function shareSummary (bot, res, convo) {
     })
   })
   .catch(e => {
-    bot.say(msg, e)
+    bot.say(e)
   })
 }
 
@@ -252,7 +302,7 @@ function shareSummary (bot, res, convo) {
  */
 function beginCloseConversation (bot, msg) {
   let webAPI = promisify(bot.api)
-  let startConversation = promisify(bot.startConversation)
+  // let startConversation = promisify(bot.startConversation)
 
   function askKeyTakeAways (response, convo) {
 

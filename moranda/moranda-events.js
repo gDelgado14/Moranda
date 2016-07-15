@@ -17,8 +17,7 @@ function morandaEvents (morandaBotkit) {
     morandaBotkit
         .on('update_user', (bot, user) => {
             // use this to notify user that his changes have been saved
-            console.log('update_user event - user')
-            console.log(user)
+            // this could be used to let the user know that he is now able to do Sessions
         })
 
         // Upon registering a team, spawn a bot
@@ -39,6 +38,18 @@ function morandaEvents (morandaBotkit) {
         // Botkit parses 'message' events and gives more specific events
         .on('ambient', (bot, message) => {
             console.log('>>> message event fired')
+        })
+
+        .on('group_archive', (bot, message) => {
+            // noop
+            // ensure that 'open' property on firebase is set to false
+            // if a Session was archived manually
+        })
+
+        .on('group_unarchive', (bot, message) => {
+            // noop
+            // ensure that 'open' property on firebase is set to true
+            // if a Session was unarchived manually
         })
 
         // This handler gets triggered in any channel in which @moranda is in, regardless of whether it's an aside or not

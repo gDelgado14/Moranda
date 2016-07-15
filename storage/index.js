@@ -1,7 +1,7 @@
 'use strict'
 
 const Firebase = require('firebase')
-const scopes = require('../utils')
+const upgradedScopes = require('../utils/scopes').upgradedScopes.split(',')
 
 function Storage () {
   // Initialize the app with a service account, granting admin privileges
@@ -81,6 +81,7 @@ function Storage () {
         let user = null
         let hasCallback = false
 
+        // consider normalizing arguments before passing them into this function
         if (identity.team_id && identity.user_id) {
           team = identity.team_id
           user = identity.user_id
@@ -102,10 +103,10 @@ function Storage () {
         return db.ref(`users/${team}/${user}`).once('value').then(userSnapshot => {
           if (hasCallback && userSnapshot.exists()) {
             // if we are updating an existing user, return that user
-            let userObj = userSnapshot.val()
-            userObj.id = userSnapshot.key
-            userObj.team_id = team
-            userObj.scopes = scopes.upgradedScopes.split(',')
+            let userObj = userSnapshot.val() 
+
+            // append new scopes to already existsing scopes
+            userObj.scopes = userObj.scopes.concat(upgradedScopes) 
             return arguments[1](null, userObj)
           } else if (hasCallback && !userSnapshot.exists()) {
             // if the user is new (and has no reference in firebase) then there is nothing to return
