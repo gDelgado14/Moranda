@@ -40,7 +40,7 @@ function setUpServerAndEndPoints (morandaBotkit, config) {
         */
 
         webserver.get('/.well-known/acme-challenge/:id', (req, res) => {
-            res.send('XVEtP_1Sw15qPZE8xwFAEOevwa6aYOJuwI0Vf47eX0A.SCcnnKcGDDN0_1WfGOT0_xMqC8PDN-MQWnbFI1Ritq8')
+            res.send('rGjFXJevQSXK6qLk4LjofPwFL5dwDsNiO1mQo4ttD18.SCcnnKcGDDN0_1WfGOT0_xMqC8PDN-MQWnbFI1Ritq8')
         })
 
     })
