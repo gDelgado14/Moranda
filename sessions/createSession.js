@@ -72,15 +72,13 @@ function openSession (bot, msg) {
       asideTitle = msg.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
       if (!asideTitle) {
         // TODO: throw within this statement, catch, and handle accordingly
-        bot.replyPrivate(msg, '/Aside requires a channel topic!')
-        return
+        throw new Error('session_topic_missing')
       }
 
       inviteeUsernames = msg.text.match(/\s@\w+/gi)
       if (!inviteeUsernames) {
         // TODO: throw within this statement, catch, and handle accordingly
-        bot.replyPrivate(msg, '/Aside requires @invitees')
-        return
+        throw new Error('invitees_missing')
       } 
       
       // get all invitee ids
@@ -146,13 +144,15 @@ Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.
       ])
     })
     .catch(e => {
-      if (e.message === 'name_taken') {
-        // name taken event fired (Issue #3)
-        bot.replyPrivate(msg, 'This Session topic is already taken! Try another topic instead.')
-        return
+      if (e === 'name_taken') {
+        // TODO: name taken event fired (Issue #3)
+        return bot.replyPrivate(msg, 'This Session topic is already taken! Try another topic instead.')
       } else if (e.message === 'scopes_missing_error') {
-        addNewScopes(bot, msg)
-        return
+        return addNewScopes(bot, msg)
+      } else if (e.message === 'session_topic_missing') {
+        return bot.replyPrivate(msg, '/Aside requires a channel topic!')
+      } else if (e.message === 'invitees_missing') {
+        return bot.replyPrivate(msg, '/Aside requires @invitees')
       }
       throw e
     })

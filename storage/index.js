@@ -101,15 +101,38 @@ function Storage () {
         }
         // return promise with dataSnapshot
         return db.ref(`users/${team}/${user}`).once('value').then(userSnapshot => {
-          if (hasCallback && userSnapshot.exists()) {
+          if (hasCallback && userSnapshot.exists() && userSnapshot.val().access_token) {
+            // TODO: img node disappears when user updates credentials
+
+            /**
+             * the problem with the way i've structured this method is:
+             *  - the user who adds moranda to slack gets an access_token given to him, which is saved in db
+             *  - all other team members are also added to db but are missing access_tokens
+             *  - when any other user goes to get a token, their token is not saved because 
+             *    botkit thinks they already have all their data (incuding token) saved to db 
+             *    (SlackBot.js:482) 
+             *  - 
+             */
+
             // if we are updating an existing user, return that user
             let userObj = userSnapshot.val() 
 
             // append new scopes to already existsing scopes
-            userObj.scopes = userObj.scopes.concat(upgradedScopes) 
+            userObj.scopes = userObj.scopes.concat(upgradedScopes)
+
+            // invoke callback with userobj
             return arguments[1](null, userObj)
           } else if (hasCallback && !userSnapshot.exists()) {
-            // if the user is new (and has no reference in firebase) then there is nothing to return
+            // if the user is new (and has no reference in firebase) then there is nothing to pass the callback
+            return arguments[1](null, null)
+          } else if (hasCallback && userSnapshot.exists() && !userSnapshot.val().access_token) {
+            // user was added as part of adding moranda to slack but never actually got authenticated (user doesnt have a token)
+            
+            // TODO: users lose certain scopes in firebase because of the way im saving scopes 
+            //        howver, the token has increased access within Slack and so apis requesting
+            //        the requisite permissions will have them already
+            //        userObj.scopes.concat(upgradedScopes) works but only for the user who installed Moranda
+            //        need a way to keep old scopes and concat / append new scopes into firebase
             return arguments[1](null, null)
           }
           return userSnapshot.val()

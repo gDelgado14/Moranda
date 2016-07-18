@@ -15,6 +15,14 @@ function doSomethingCrazy () {
   // noop
 }
 
+// utility to stall the archiving of a Session
+function stall () {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve('Stalling complete')
+      }, 1000)
+    })
+}
 /**
  * Create Slack compliant attachment that will be stringified by Botkit
  * 
@@ -23,7 +31,7 @@ function doSomethingCrazy () {
  * @returns {Array} will be stringified by Botkit
  */
 function createSummary (purpose, summary) {
-  // s = unstringified summary attachment
+
   return [{
             fallback: 'An Aside summary.',
             color: "#36a64f",
@@ -47,10 +55,7 @@ function createSummary (purpose, summary) {
  * @returns {Promise} containing Session purpose
  */
 function getAsidePurpose (res) {
-  return db.asides.get(res).then(asideObj => {
-    console.log('>>>> purpose', asideObj.purpose)
-    return asideObj.purpose
-  })
+  return db.asides.get(res).then(asideObj => asideObj.purpose)
 }
 
 /**
@@ -109,19 +114,19 @@ function dmSummary(response, convo, bot) {
       let i
       let asideSummary = createSummary(asidePurpose, convo.extractResponse('summary'))
       
+      // find the right user to DM the summary to
       for (i = 0; i < imList.ims.length; i++) {
         if (imList.ims[i].user === response.user) {
-          bot.api.chat.postMessage({
+          break
+        }
+      }
+
+      return webAPI.chat.postMessage({
             token: bot.config.bot.token,
             channel: imList.ims[i].id,
             text: 'Here is your Aside summary',
             attachments: asideSummary
           })
-          break
-        }
-      }
-
-      return
 
     })
   })
@@ -148,7 +153,7 @@ function askForInvite (bot, convo, notMember) {
     let channels = notMember.map(chan => ` <#${chan}>`).toString().trim()
 
     convo.ask(
-    `Woah! It seems like I\'m not in ${channels}\nAll you gotta do is invite me: \`/invite <@${bot.config.bot.user_id}> #ChannelName\`. Once you've added me, say 'Ok'.\nOr just say \`No\``,
+    `Woah! It seems like I\'m not in ${channels}\nAll you gotta do is invite me: \`/invite <@${bot.config.bot.user_id}> #ChannelName\`. Once you've added me, say \`Ok\`.\nOr just say \`No\``,
     [{
         pattern: bot.utterances.no,
         callback: (response, convo) => {
@@ -160,9 +165,11 @@ function askForInvite (bot, convo, notMember) {
       {
         pattern: bot.utterances.yes,
         callback: (response, convo) => {
-          convo.say(`great!`)
+          // TODO: figure out which channels Moranda was actually invited to
+          //        currently assuming moranda was added to all the channels
+          convo.say(`great! I will now archive this Session.`)
           convo.next()
-          reject('initialize_sharing_again')
+          resolve(notMember)
         }
       },
       {
@@ -242,42 +249,25 @@ function shareSummary (bot, res, convo) {
 
       // if there are no channels to share to ...
       if (shareChannels.length === 0) {
-        console.log('>>>> inside 2nd if')
         convo.say(`Instead I'll DM <@${userObj.id}> the summary. Have a wonderful rest of your day!`)
         convo.next()
         return dmSummary(res, convo, bot)
       }
     }
 
-    /*
-    let asideSummary = [{
-        fallback: 'An Aside summary.',
-        color: "#36a64f",
-        author_name: '@' + userObj.user,
-        author_icon: userObj.img,
-        fields: [
-          {
-            title: "Purpose",
-            value: asidePurpose
-          },
-          {
-            title: "Summary",
-            value: convo.extractResponse('summary')
-          }
-        ]
-      }]
+    let asideSummary = createSummary(asidePurpose, convo.extractResponse('summary'))
+    let channelNames = shareChannels.map(chan => `<#${chan}> `)
+    convo.say(`Great, I will share this summary with ${channelNames}`)
 
-      let channelNames = shareChannels.map(chan => `<#${chan}> `)
-      convo.say(`Great, I will share this summary with ${channelNames}`)
-
-      return Promise.all(shareChannels.map(chan => webAPI.chat.postMessage({
-        token: bot.config.bot.token,
-        channel: chan,
-        text: `Here\'s an update of the \"${asidePurpose}\" Sidebar`,
-        attachments: asideSummary,
-        as_user: true })
-        )
-      )*/
+    
+    return Promise.all(shareChannels.map(chan => webAPI.chat.postMessage({
+      token: bot.config.bot.token,
+      channel: chan,
+      text: `Here\'s an update of the \"${asidePurpose}\" Sidebar`,
+      attachments: asideSummary,
+      as_user: true })
+      ).concat(stall) // TODO: stall not working
+    )
   })
   .then(postMessageResponseArray => {
     // TODO: set asides as closed in db
@@ -287,6 +277,7 @@ function shareSummary (bot, res, convo) {
     })
   })
   .catch(e => {
+    console.log('>>> error: ', e)
     bot.say(e)
   })
 }
@@ -344,7 +335,6 @@ function beginCloseConversation (bot, msg) {
     }])
   }
 
-
   // convo.ask should only be used when a response to a question alters the outcome of a conversation
   // in which case, there needs to be a way to store the responses that were said when conov.ask was NOT used
   bot.startConversation(msg, askKeyTakeAways)
@@ -360,8 +350,8 @@ function beginCloseConversation (bot, msg) {
  * @param {Object} message
  */
 function initFinalizeAsides (bot, msg) {
-
     // this handler is used for when a user invites moranda into channels it was previously not in
+    // doSomethingCrazy is a noop
     bot.botkit.on('channel_joined', doSomethingCrazy)
 
     // asideData queries return:

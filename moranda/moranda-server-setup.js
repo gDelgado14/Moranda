@@ -32,6 +32,17 @@ function setUpServerAndEndPoints (morandaBotkit, config) {
 
         morandaBotkit.createHomepageEndpoint(webserver)
 
+        /*
+        // set up let's encrypt stuff
+        webserver.get('/.well-known/acme-challenge/:id', function(req, res) {
+            res.redirect()
+        })
+        */
+
+        webserver.get('/.well-known/acme-challenge/:id', (req, res) => {
+            res.send('XVEtP_1Sw15qPZE8xwFAEOevwa6aYOJuwI0Vf47eX0A.SCcnnKcGDDN0_1WfGOT0_xMqC8PDN-MQWnbFI1Ritq8')
+        })
+
     })
 
     return

@@ -2,3 +2,6 @@ notes
 res.json
 auth_access.json
 auth_test.json
+botkit
+jsconfig.json
+.vscode
