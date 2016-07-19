@@ -186,8 +186,8 @@ function Storage () {
         }
         return db.ref(`asides/${response.team}/${response.channel}`).once('value').then(asideSnapshot => asideSnapshot.val())
       },
-      save: function (asideData, response) {
-        return db.ref(`asides/${response.team}/${response.channel}`).update(asideData)
+      save: function (asideData, teamId, groupId) {
+        return db.ref(`asides/${teamId}/${groupId}`).update(asideData)
       },
       all: function (teamId) {
         return db.ref(`asides/${teamId}`).once('value').then(asidesSnapshot => asidesSnapshot.val())

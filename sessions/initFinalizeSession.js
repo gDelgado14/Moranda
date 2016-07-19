@@ -16,9 +16,9 @@ function doSomethingCrazy () {
 }
 
 function closeSession (res) {
-  return db.asides.get(response).then(asideObj => {
+  return db.asides.get(res).then(asideObj => {
     asideObj.open = false
-    return db.asides.save(asideObj, res)
+    return db.asides.save(asideObj, res.team, res.channel)
   })
 }
 
@@ -278,6 +278,7 @@ function shareSummary (bot, res, convo) {
   })
   .then(postMessageResponseArray => {
     
+    // set session as closed in db
     closeSession(res)
 
     webAPI.groups.archive({

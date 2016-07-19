@@ -71,13 +71,11 @@ function openSession (bot, msg) {
       
       asideTitle = msg.text.replace(/@(\w+)/gi, '').toLowerCase().trim()
       if (!asideTitle) {
-        // TODO: throw within this statement, catch, and handle accordingly
         throw new Error('session_topic_missing')
       }
 
       inviteeUsernames = msg.text.match(/\s@\w+/gi)
       if (!inviteeUsernames) {
-        // TODO: throw within this statement, catch, and handle accordingly
         throw new Error('invitees_missing')
       } 
       
@@ -119,8 +117,8 @@ function openSession (bot, msg) {
       let txt = `Welcome @${msg.user_name + ', ' + msg.text.match(/@(\w+)/gi).join(', ')}!
 <@${msg.user_id}> created this Session and set the purpose to:
 > ${asideTitle}
-When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Sidebar for you.
-Just @mention me in this sidebar and I'll take care of it: \`<@${bot.config.bot.user_id}> done\``
+When you're done, I'll help summarize takeaways and offer to share them with a Channel (optional) before archiving the Session for you.
+Just @mention me in this Session and I'll take care of it: \`<@${bot.config.bot.user_id}> done\``
       let groupId = responseArray[0].group.id
       
       // let Slack servers know that things went well
