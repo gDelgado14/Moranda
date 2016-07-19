@@ -15,6 +15,13 @@ function doSomethingCrazy () {
   // noop
 }
 
+function closeSession (res) {
+  return db.asides.get(response).then(asideObj => {
+    asideObj.open = false
+    return db.asides.save(asideObj, res)
+  })
+}
+
 // utility to stall the archiving of a Session
 function stall () {
     return new Promise((resolve, reject) => {
@@ -270,7 +277,9 @@ function shareSummary (bot, res, convo) {
     )
   })
   .then(postMessageResponseArray => {
-    // TODO: set asides as closed in db
+    
+    closeSession(res)
+
     webAPI.groups.archive({
       token: userObj.access_token,
       channel: res.channel
