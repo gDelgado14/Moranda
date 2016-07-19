@@ -15,7 +15,7 @@ function Moranda(Botkit, config, dirname) {
         }).configureSlackApp({
             clientId: config.CLIENT_ID,
             clientSecret: config.CLIENT_SECRET,
-            redirectUri: 'https://c6dcfdc7.ngrok.io/oauth',
+            redirectUri: 'http://moranda.ai/oauth',
             scopes: initialScopes // ask for the most basic permissions and subsequently add more scopes as needed
         })
 

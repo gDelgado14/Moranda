@@ -1,6 +1,7 @@
 'use strict'
 
 const express = require('express')
+
 // const webhooks = express()
 
 function setUpServerAndEndPoints (morandaBotkit, config) {
@@ -37,12 +38,12 @@ function setUpServerAndEndPoints (morandaBotkit, config) {
         webserver.get('/.well-known/acme-challenge/:id', function(req, res) {
             res.redirect()
         })
-        */
+        
 
         webserver.get('/.well-known/acme-challenge/:id', (req, res) => {
             res.send('rGjFXJevQSXK6qLk4LjofPwFL5dwDsNiO1mQo4ttD18.SCcnnKcGDDN0_1WfGOT0_xMqC8PDN-MQWnbFI1Ritq8')
         })
-
+        */
     })
 
     return

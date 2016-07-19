@@ -38,6 +38,9 @@ function morandaEvents (morandaBotkit) {
         // Botkit parses 'message' events and gives more specific events
         .on('ambient', (bot, message) => {
             console.log('>>> message event fired')
+            // check if is Session
+            // then check if message posted is a link
+
         })
 
         .on('group_archive', (bot, message) => {
